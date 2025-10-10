@@ -1,0 +1,80 @@
+// Prisma Schema para Sistema Lar dos Idosos
+// Base de dados: SQLite (arquivo local)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../database/lar_idosos.db"
+}
+
+// Tabela de Responsáveis (quem paga)
+model Responsavel {
+  id              Int      @id @default(autoincrement())
+  nome            String
+  cpf             String   @unique
+  contatoTelefone String?
+  contatoEmail    String?
+  idosos          Idoso[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("responsaveis")
+}
+
+// Tabela de Idosos
+model Idoso {
+  id                   Int          @id @default(autoincrement())
+  nome                 String
+  cpf                  String?      @unique
+  dataNascimento       DateTime?
+  responsavelId        Int
+  responsavel          Responsavel  @relation(fields: [responsavelId], references: [id])
+  valorMensalidadeBase Float
+  pagamentos           Pagamento[]
+  ativo                Boolean      @default(true)
+  observacoes          String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@map("idosos")
+}
+
+// Tabela de Pagamentos
+model Pagamento {
+  id                   Int       @id @default(autoincrement())
+  idosoId              Int
+  idoso                Idoso     @relation(fields: [idosoId], references: [id])
+  mesReferencia        Int       // 1 a 12 (Janeiro a Dezembro)
+  anoReferencia        Int       // 2025, 2026...
+  valorPago            Float     @default(0)
+  dataPagamento        DateTime?
+  nfse                 String?   // Número da Nota Fiscal
+  status               String    @default("PENDENTE") // PENDENTE, PARCIAL, PAGO
+  valorDoacaoCalculado Float     @default(0)
+  caminhoReciboDoacao  String?   // Caminho completo do arquivo DOCX gerado
+  observacoes          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([idosoId, mesReferencia, anoReferencia])
+  @@map("pagamentos")
+}
+
+// Tabela de Configurações do Sistema
+model Configuracao {
+  id        Int      @id @default(autoincrement())
+  chave     String   @unique
+  valor     String
+  descricao String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("configuracoes")
+}
+
+
+
+
