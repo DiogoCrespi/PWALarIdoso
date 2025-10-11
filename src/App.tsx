@@ -6,6 +6,8 @@ import Layout from './components/Layout/Layout';
 import DashboardPage from './pages/DashboardPage';
 import IdososPage from './pages/IdososPage';
 import ResponsaveisPage from './pages/ResponsaveisPage';
+import NotasFiscaisPage from './pages/NotasFiscaisPage';
+import TemplatesPage from './pages/TemplatesPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 
 function App() {
@@ -18,6 +20,8 @@ function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/idosos" element={<IdososPage />} />
             <Route path="/responsaveis" element={<ResponsaveisPage />} />
+            <Route path="/notas-fiscais" element={<NotasFiscaisPage />} />
+            <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/configuracoes" element={<ConfiguracoesPage />} />
           </Routes>
         </Layout>

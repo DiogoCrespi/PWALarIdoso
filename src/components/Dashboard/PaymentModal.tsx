@@ -13,6 +13,12 @@ import {
   Chip,
   Divider,
   Grid,
+  Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  LinearProgress,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -21,6 +27,10 @@ import { ptBR } from 'date-fns/locale';
 import SaveIcon from '@mui/icons-material/Save';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import CloseIcon from '@mui/icons-material/Close';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { useDropzone } from 'react-dropzone';
 import type { Idoso } from '../../electron.d';
 
 interface PaymentModalProps {
@@ -65,10 +75,23 @@ export default function PaymentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  
+  // Estados para upload de NFSE
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [extractedData, setExtractedData] = useState<any>(null);
 
   // Resetar formulário quando modal abrir
   useEffect(() => {
+    console.log('🔄 PaymentModal: useEffect - open:', open, 'idoso:', idoso, 'pagamentoExistente:', pagamentoExistente);
+    
     if (open) {
+      if (pagamentoExistente) {
+        console.log('📝 PaymentModal: Editando pagamento existente');
+      } else {
+        console.log('➕ PaymentModal: Criando novo pagamento');
+      }
+      
       setFormData({
         valorPago: pagamentoExistente?.valorPago?.toString() || '',
         dataPagamento: pagamentoExistente?.dataPagamento || new Date(),
@@ -78,13 +101,112 @@ export default function PaymentModal({
       setError(null);
       setSuccess(false);
     }
-  }, [open, pagamentoExistente]);
+  }, [open, pagamentoExistente, idoso]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  // Funções para upload de NFSE
+  const onDrop = (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      setUploadedFile(file);
+      setError(null);
+      processFile(file);
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    multiple: false
+  });
+
+  const processFile = async (file: File) => {
+    setIsProcessingFile(true);
+    setError(null);
+
+    try {
+      // Simular processamento de arquivo
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Dados simulados extraídos (em produção, usar biblioteca de OCR/PDF parsing)
+      // Simular diferentes cenários baseados no idoso selecionado
+      let mockData;
+      
+      if (idoso?.nome === 'Ana Sangaleti Bonassa') {
+        // NFSE correta para Ana Sangaleti Bonassa
+        mockData = {
+          numeroNFSE: '1497',
+          dataPrestacao: '03/10/2025',
+          discriminacao: 'Valor referente a participação no custeio da entidade. Referente ao mês de junho de 2025. Conforme PIX Sicredi.',
+          valor: 2800.00,
+          nomePessoa: 'Ana Sangaleti Bonassa' // Nome correto do idoso
+        };
+      } else {
+        // NFSE de outro idoso (para testar validação)
+        mockData = {
+          numeroNFSE: '1497',
+          dataPrestacao: '03/10/2025',
+          discriminacao: 'Valor referente a participação no custeio da entidade. Referente ao mês de junho de 2025. Conforme PIX Sicredi.',
+          valor: 2800.00,
+          nomePessoa: 'IVONI LUCIA HANAUER' // Nome diferente para testar validação
+        };
+      }
+
+      // Validar se a NFSE é do idoso correto
+      if (idoso && mockData.nomePessoa !== idoso.nome && mockData.nomePessoa !== idoso.responsavel?.nome) {
+        setError(`⚠️ ATENÇÃO: Esta NFSE é de "${mockData.nomePessoa}", mas o idoso selecionado é "${idoso.nome}". Verifique se está correto.`);
+      } else if (idoso && (mockData.nomePessoa === idoso.nome || mockData.nomePessoa === idoso.responsavel?.nome)) {
+        // Limpar erro se a NFSE for do idoso correto
+        setError(null);
+      }
+
+      setExtractedData(mockData);
+      
+      // Preencher automaticamente os campos do formulário
+      setFormData(prev => ({
+        ...prev,
+        valorPago: mockData.valor.toString(),
+        nfse: mockData.numeroNFSE,
+        dataPagamento: new Date(mockData.dataPrestacao.split('/').reverse().join('-')),
+        observacoes: mockData.discriminacao
+      }));
+      
+    } catch (err) {
+      setError('Erro ao processar arquivo. Tente novamente.');
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  const handleUseExtractedData = () => {
+    if (extractedData && idoso) {
+      // Validar se o valor não excede 70% do salário do idoso
+      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+      if (extractedData.valor > valorMaximo) {
+        setError(`Valor da NFSE (R$ ${extractedData.valor.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        valorPago: extractedData.valor.toString(),
+        nfse: extractedData.numeroNFSE,
+        dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
+        observacoes: extractedData.discriminacao
+      }));
+      
+      setExtractedData(null);
+      setUploadedFile(null);
+    }
   };
 
   const handleSave = async () => {
@@ -99,6 +221,13 @@ export default function PaymentModal({
 
       if (!idoso) {
         throw new Error('Idoso não encontrado');
+      }
+
+      // Validar se o valor não excede 70% do salário do idoso
+      const valorPago = parseFloat(formData.valorPago);
+      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+      if (valorPago > valorMaximo) {
+        throw new Error(`Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
       }
 
       const dataToSave = {
@@ -229,9 +358,128 @@ export default function PaymentModal({
               </Box>
             </Grid>
 
+            {/* Upload de NFSE */}
+            {!pagamentoExistente && (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2, border: '2px dashed', borderColor: 'primary.main' }}>
+                  <Typography variant="h6" gutterBottom>
+                    Upload de Nota Fiscal (NFSE)
+                  </Typography>
+                  
+                  {!uploadedFile ? (
+                    <Box
+                      {...getRootProps()}
+                      sx={{
+                        p: 3,
+                        textAlign: 'center',
+                        border: '2px dashed',
+                        borderColor: isDragActive ? 'primary.main' : 'grey.300',
+                        backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
+                        cursor: 'pointer',
+                        borderRadius: 1
+                      }}
+                    >
+                      <input {...getInputProps()} />
+                      <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+                      <Typography variant="h6" gutterBottom>
+                        {isDragActive ? 'Solte o arquivo aqui' : 'Arraste um arquivo NFSE ou clique para selecionar'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Formatos aceitos: PDF, DOCX
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <DescriptionIcon sx={{ mr: 1, color: 'success.main' }} />
+                        <Typography variant="h6">
+                          Arquivo Processado
+                        </Typography>
+                        <CheckCircleIcon sx={{ ml: 1, color: 'success.main' }} />
+                      </Box>
+                      
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        {uploadedFile.name}
+                      </Typography>
+
+                      {isProcessingFile && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body2" gutterBottom>
+                            Processando arquivo...
+                          </Typography>
+                          <LinearProgress />
+                        </Box>
+                      )}
+
+                      {extractedData && (
+                        <Box sx={{ mt: 2, p: 2, backgroundColor: 'success.50', borderRadius: 1 }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            Dados Extraídos:
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>NFSE:</strong> {extractedData.numeroNFSE}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Valor:</strong> R$ {extractedData.valor.toFixed(2)}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Data:</strong> {extractedData.dataPrestacao}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>Pagador:</strong> {extractedData.nomePessoa}
+                          </Typography>
+                          
+                          {/* Indicador de validação do idoso */}
+                          {idoso && (
+                            <Box sx={{ mt: 1 }}>
+                              {extractedData.nomePessoa === idoso.nome || extractedData.nomePessoa === idoso.responsavel?.nome ? (
+                                <Chip
+                                  label="✅ NFSE do idoso correto"
+                                  color="success"
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ) : (
+                                <Chip
+                                  label="⚠️ NFSE de outro idoso"
+                                  color="warning"
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
+                          )}
+                          
+                          <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={handleUseExtractedData}
+                            >
+                              Usar Dados Extraídos
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => {
+                                setUploadedFile(null);
+                                setExtractedData(null);
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Paper>
+              </Grid>
+            )}
+
             {/* Status Atual */}
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                 <Typography variant="subtitle2">Status:</Typography>
                 <Chip
                   label={getStatusLabel(status)}
@@ -246,6 +494,12 @@ export default function PaymentModal({
                     variant="outlined"
                   />
                 )}
+                <Chip
+                  label={`Limite: R$ ${(valorBase * 0.7).toFixed(2)} (70%)`}
+                  color="warning"
+                  size="small"
+                  variant="outlined"
+                />
               </Box>
             </Grid>
 

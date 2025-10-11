@@ -122,9 +122,11 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
   // Fechar formulário
   const handleFormClose = () => {
     console.log('🚪 Fechando formulário...');
+    console.log('🔍 Estado atual formOpen:', formOpen);
     setFormOpen(false);
     setSelectedResponsavel(null);
     console.log('✅ Formulário fechado!');
+    console.log('🔍 Novo estado formOpen:', false);
   };
 
   // Salvar responsável
@@ -144,6 +146,7 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
       
       console.log('🔄 Recarregando lista...');
       await loadResponsaveis();
+      console.log('🚪 Fechando formulário...');
       handleFormClose();
       onRefresh?.();
       console.log('✅ Operação concluída com sucesso!');

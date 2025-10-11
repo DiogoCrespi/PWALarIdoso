@@ -204,6 +204,7 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
 
   // Salvar
   const handleSave = async () => {
+    console.log('🚀 handleSave chamado!');
     console.log('🔍 Validando formulário...');
     if (!validarFormulario()) {
       console.log('❌ Formulário inválido');
@@ -223,9 +224,11 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
       };
 
       console.log('📤 Dados preparados para envio:', dadosParaEnvio);
+      console.log('🔄 Chamando onSave...');
       await onSave(dadosParaEnvio);
-      console.log('✅ Salvamento concluído!');
+      console.log('✅ onSave concluído!');
       setSaving(false);
+      console.log('✅ setSaving(false) executado!');
     } catch (error) {
       console.error('❌ Erro ao salvar responsável:', error);
       alert('Erro ao salvar responsável: ' + (error as Error).message);

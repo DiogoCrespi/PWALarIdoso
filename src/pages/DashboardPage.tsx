@@ -41,12 +41,21 @@ export default function DashboardPage() {
   };
 
   const handleCellClick = (idosoId: number, mes: number) => {
+    console.log('🔍 DashboardPage: Célula clicada - Idoso ID:', idosoId, 'Mês:', mes);
+    console.log('📊 DashboardPage: Dados disponíveis:', dashboardData);
+    
     // Buscar dados do idoso
     const idoso = dashboardData?.idosos.find(i => i.id === idosoId);
-    if (!idoso) return;
+    console.log('👤 DashboardPage: Idoso encontrado:', idoso);
+    
+    if (!idoso) {
+      console.error('❌ DashboardPage: Idoso não encontrado para ID:', idosoId);
+      return;
+    }
 
     // Buscar pagamento existente
     const pagamento = dashboardData?.pagamentos[idosoId]?.[mes];
+    console.log('💰 DashboardPage: Pagamento existente:', pagamento);
 
     setSelectedIdoso(idoso);
     setSelectedMes(mes);

@@ -52,6 +52,21 @@ export interface Configuracao {
   updatedAt: Date;
 }
 
+export interface NotaFiscal {
+  id: string;
+  numeroNFSE: string;
+  dataPrestacao: string;
+  discriminacao: string;
+  mesReferencia: string;
+  valor: number;
+  nomePessoa?: string;
+  idosoId?: string;
+  idosoNome?: string;
+  responsavelNome?: string;
+  arquivo?: File;
+  dataUpload: Date;
+}
+
 export interface DashboardData {
   idosos: Idoso[];
   pagamentos: Record<number, Record<number, {
@@ -103,6 +118,19 @@ export interface ElectronAPI {
     list: () => Promise<Configuracao[]>;
     get: (chave: string) => Promise<Configuracao | null>;
     set: (chave: string, valor: string) => Promise<Configuracao>;
+  };
+
+  notasFiscais: {
+    list: () => Promise<NotaFiscal[]>;
+    create: (data: Partial<NotaFiscal>) => Promise<NotaFiscal>;
+    update: (id: string, data: Partial<NotaFiscal>) => Promise<NotaFiscal>;
+    delete: (id: string) => Promise<boolean>;
+    getById: (id: string) => Promise<NotaFiscal>;
+  };
+
+  templates: {
+    gerarMensalidade: (data: any) => Promise<{ fileName: string; path: string }>;
+    gerarListaIdosos: (data: any) => Promise<{ fileName: string; path: string }>;
   };
 }
 

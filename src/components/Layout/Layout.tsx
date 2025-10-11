@@ -5,6 +5,8 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
+import DescriptionIcon from '@mui/icons-material/Description';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const drawerWidth = 240;
@@ -23,6 +25,8 @@ const menuItems: MenuItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Idosos', icon: <PeopleIcon />, path: '/idosos' },
   { text: 'Responsáveis', icon: <PersonIcon />, path: '/responsaveis' },
+  { text: 'Notas Fiscais', icon: <DescriptionIcon />, path: '/notas-fiscais' },
+  { text: 'Templates', icon: <ReceiptIcon />, path: '/templates' },
   { text: 'Configurações', icon: <SettingsIcon />, path: '/configuracoes' },
 ];
 

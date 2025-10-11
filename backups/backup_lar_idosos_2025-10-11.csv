@@ -1,0 +1,14 @@
+TIPO,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,DATA_PAGAMENTO,ANO_REFERENCIA,MES_REFERENCIA,OBSERVACOES
+RESPONSAVEL,"Maria Silva Santos","123.456.789-00","(45) 98888-7777","maria.silva@email.com",,,,,,,,,,
+RESPONSAVEL,"Responsável de Teste","000.000.000-00","(45) 99999-9999","teste@email.com",,,,,,,,,,
+IDOSO,"Idoso de Teste","111.111.111-11","","","1940-01-01","2500",,,,,,,"Registro de teste - pode ser excluído"
+IDOSO,"Maria Silva Santos","123.456.789-00","","","1945-05-15","2800",,,,,,,"Teste de cadastro manual"
+PAGAMENTO,"Idoso de Teste","111.111.111-11","","","","","PENDENTE","0","","","2025","11","Pagamento pendente"
+PAGAMENTO,"Idoso de Teste","111.111.111-11","","","","","PARCIAL","1500","1492","2025-10-10","2025","10","Pagamento parcial de outubro"
+PAGAMENTO,"Idoso de Teste","111.111.111-11","","","","","PAGO","2500","1491","2025-09-15","2025","9","Pagamento integral de setembro"
+CONFIGURACAO,"Ano de referência atual do sistema","ano_atual","","","","","","","","","","","2025"
+CONFIGURACAO,"Pasta de rede para salvar recibos de doação","caminho_recibos_doacao","","","","","","","","","","","C:\Nestjs\PWALarIdosos\RECIBOS DOAÇÃO LAR"
+CONFIGURACAO,"Pasta base para salvar recibos de mensalidade","caminho_recibos_mensalidade","","","","","","","","","","","C:\Nestjs\PWALarIdosos\RECIBOS"
+CONFIGURACAO,"CNPJ da instituição","cnpj_instituicao","","","","","","","","","","","XX.XXX.XXX/XXXX-XX"
+CONFIGURACAO,"Endereço da instituição","endereco_instituicao","","","","","","","","","","","Matelândia - PR"
+CONFIGURACAO,"Nome completo da instituição","nome_instituicao","","","","","","","","","","","Associação Filhas de São Camilo"
