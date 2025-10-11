@@ -147,21 +147,40 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
 
   // Lidar com CPF/CNPJ (detecção automática e formatação)
   const handleCPFChange = (value: string) => {
-    const docInfo = identifyDocument(value);
+    // Primeiro, atualizar o valor no estado para permitir digitação livre
+    handleChange('cpf', value);
     
-    if (docInfo.type === 'INVALID') {
-      setDocumentType(null);
-      setErrors(prev => ({ ...prev, cpf: 'Documento inválido' }));
-    } else {
-      setDocumentType(docInfo.type);
+    // Limpar erros anteriores quando usuário está digitando
+    if (errors.cpf) {
+      setErrors(prev => ({ ...prev, cpf: '' }));
+    }
+    
+    // Só validar se o campo não estiver vazio
+    if (value.trim()) {
+      const docInfo = identifyDocument(value);
       
-      if (docInfo.isValid) {
-        setErrors(prev => ({ ...prev, cpf: '' }));
-        handleChange('cpf', docInfo.formatted);
+      if (docInfo.type === 'INVALID') {
+        setDocumentType(null);
+        // Só mostrar erro se o usuário parou de digitar (mais de 3 caracteres)
+        if (value.length > 3) {
+          setErrors(prev => ({ ...prev, cpf: 'Documento inválido' }));
+        }
       } else {
-        setErrors(prev => ({ ...prev, cpf: `${docInfo.type} inválido` }));
-        handleChange('cpf', docInfo.formatted);
+        setDocumentType(docInfo.type);
+        
+        if (docInfo.isValid) {
+          setErrors(prev => ({ ...prev, cpf: '' }));
+          // Aplicar formatação apenas se o documento for válido
+          handleChange('cpf', docInfo.formatted);
+        } else {
+          // Só mostrar erro se o usuário parou de digitar (documento completo)
+          if (value.length >= (docInfo.type === 'CPF' ? 11 : 14)) {
+            setErrors(prev => ({ ...prev, cpf: `${docInfo.type} inválido` }));
+          }
+        }
       }
+    } else {
+      setDocumentType(null);
     }
   };
 

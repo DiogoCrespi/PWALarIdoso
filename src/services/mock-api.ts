@@ -112,8 +112,12 @@ const getIdososMock = () => {
       'Aloisio Luiz Grumicher'
     ];
     
+    // Forçar migração baseada no nome, mesmo se já tiver tipo definido
     if (nomesSocial.includes(idoso.nome)) {
       tipo = 'SOCIAL';
+      if (idoso.tipo !== 'SOCIAL') {
+        console.log('🔄 Forçando migração do idoso:', idoso.nome, 'de', idoso.tipo, 'para SOCIAL');
+      }
     }
     
     if (!idoso.tipo) {
@@ -127,7 +131,9 @@ const getIdososMock = () => {
   });
   
   // Salvar dados migrados se houve mudanças
-  if (migratedData.some((idoso, index) => idoso.tipo !== data[index]?.tipo)) {
+  const hasChanges = migratedData.some((idoso, index) => idoso.tipo !== data[index]?.tipo);
+  if (hasChanges) {
+    console.log('💾 Salvando dados migrados...');
     saveIdososMock(migratedData);
   }
   
@@ -358,7 +364,10 @@ export const mockElectronAPI = {
       const tipoIdoso = idoso?.tipo || 'REGULAR';
       let status = 'PENDENTE';
       
-      if (valorPago >= valorBase) {
+      // Status baseado no limite de 70% (não no valor total)
+      const limite70Porcento = valorBase * 0.7;
+      
+      if (valorPago >= limite70Porcento) {
         status = 'PAGO';
       } else if (valorPago > 0) {
         status = 'PARCIAL';
@@ -387,6 +396,8 @@ export const mockElectronAPI = {
         pagamentoExistente.valorPago = valorPago;
         pagamentoExistente.dataPagamento = data.dataPagamento ? new Date(data.dataPagamento).toISOString().split('T')[0] : null;
         pagamentoExistente.nfse = data.nfse;
+        pagamentoExistente.pagador = data.pagador;
+        pagamentoExistente.formaPagamento = data.formaPagamento;
         pagamentoExistente.status = status;
         pagamentoExistente.valorDoacaoCalculado = valorDoacao;
         pagamentoExistente.observacoes = data.observacoes;
@@ -405,6 +416,8 @@ export const mockElectronAPI = {
           valorPago,
           dataPagamento: data.dataPagamento ? new Date(data.dataPagamento).toISOString().split('T')[0] : null,
           nfse: data.nfse,
+          pagador: data.pagador,
+          formaPagamento: data.formaPagamento,
           status,
           valorDoacaoCalculado: valorDoacao,
           observacoes: data.observacoes,
@@ -578,6 +591,89 @@ export const mockElectronAPI = {
       return nota;
     }
   },
+  backup: {
+    gerarCSV: async () => {
+      console.log('💾 Mock API: Gerando backup CSV...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      try {
+        // Buscar todos os dados
+        const [responsaveis, idosos, pagamentos, configuracoes, notasFiscais] = await Promise.all([
+          getResponsaveisMock(),
+          getIdososMock(),
+          getPagamentosMock(),
+          [
+            { id: 1, chave: 'nome_instituicao', valor: 'Associação Filhas de São Camilo', descricao: 'Nome da instituição' },
+            { id: 2, chave: 'cnpj_instituicao', valor: '61.986.402/0019-20', descricao: 'CNPJ da instituição' },
+            { id: 3, chave: 'endereco_instituicao', valor: 'Rua Alfredo Chaves, nº 778', descricao: 'Endereço da instituição' },
+            { id: 4, chave: 'telefone_instituicao', valor: '(45)3262-1251', descricao: 'Telefone da instituição' },
+            { id: 5, chave: 'email_instituicao', valor: 'larnssaude@gmail.com.br', descricao: 'Email da instituição' },
+          ],
+          getNotasFiscaisMock()
+        ]);
+
+        console.log(`📊 Dados encontrados para backup:`);
+        console.log(`   - Responsáveis: ${responsaveis.length}`);
+        console.log(`   - Idosos: ${idosos.length}`);
+        console.log(`   - Pagamentos: ${pagamentos.length}`);
+        console.log(`   - Configurações: ${configuracoes.length}`);
+        console.log(`   - Notas Fiscais: ${notasFiscais.length}`);
+
+        // Gerar timestamp para nome do arquivo
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+        const nomeArquivo = `backup_lar_idosos_${timestamp}.csv`;
+        
+        // Gerar conteúdo CSV
+        let csvContent = '';
+        
+        // Cabeçalho
+        csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
+        
+        // Responsáveis
+        responsaveis.forEach(r => {
+          csvContent += `RESPONSAVEL,${r.id},"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,,,,${r.ativo ? 'ATIVO' : 'INATIVO'},,,,,,,,,,"${r.createdAt}","${r.updatedAt}"\n`;
+        });
+        
+        // Idosos
+        idosos.forEach(i => {
+          csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavel?.id || ''},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
+        });
+        
+        // Pagamentos
+        pagamentos.forEach(p => {
+          const idoso = idosos.find(i => i.id === p.idosoId);
+          csvContent += `PAGAMENTO,${p.id},"${idoso?.nome || ''}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento || ''}",${p.mesReferencia},${p.anoReferencia},"${p.valorDoacaoCalculado || 0}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
+        });
+        
+        // Notas Fiscais
+        notasFiscais.forEach(n => {
+          csvContent += `NOTA_FISCAL,${n.id},"${n.nomePessoa || ''}","","","","","","","","","","","","${n.valor || 0}","${n.numeroNFSE || ''}","","","${n.dataPrestacao || ''}",,,,,,"${n.discriminacao || ''}","${n.dataUpload}","${n.dataUpload}"\n`;
+        });
+        
+        // Configurações
+        configuracoes.forEach(c => {
+          csvContent += `CONFIGURACAO,${c.id},"${c.chave}","","","","","","","","","","","","","","","","","","","","${c.valor}","${c.descricao || ''}","",""\n`;
+        });
+        
+        console.log('✅ Mock API: Backup CSV gerado com sucesso');
+        return {
+          fileName: nomeArquivo,
+          content: csvContent,
+          stats: {
+            responsaveis: responsaveis.length,
+            idosos: idosos.length,
+            pagamentos: pagamentos.length,
+            configuracoes: configuracoes.length,
+            notasFiscais: notasFiscais.length
+          }
+        };
+      } catch (error) {
+        console.error('❌ Mock API: Erro ao gerar backup:', error);
+        throw error;
+      }
+    }
+  },
+
   templates: {
     gerarMensalidade: async (data: any) => {
       console.log('📄 Mock API: Gerando template de mensalidade:', data);
@@ -684,8 +780,61 @@ CPF: ${data.cpfResponsavel}
       try {
         console.log('📄 Mock API: Criando lista para impressão...');
         
+        // Buscar dados completos dos idosos e pagamentos
+        const idososMock = getIdososMock();
+        const pagamentosMock = getPagamentosMock();
+        const responsaveisMock = getResponsaveisMock();
+        
+        // Enriquecer dados dos idosos com informações de pagamento
+        const idososCompletos = data.idosos.map((idoso: any) => {
+          // Buscar idoso completo no mock
+          const idosoCompleto = idososMock.find(i => i.id.toString() === idoso.id);
+          
+          // Buscar pagamentos do idoso para o mês/ano especificado
+          const [mes, ano] = data.mesReferencia.split('/');
+          const pagamento = pagamentosMock.find(p => 
+            p.idosoId === parseInt(idoso.id) && 
+            p.mesReferencia === parseInt(mes) && 
+            p.anoReferencia === parseInt(ano)
+          );
+          
+          // Buscar responsável completo
+          const responsavelCompleto = responsaveisMock.find(r => r.id === idosoCompleto?.responsavel?.id);
+          
+          return {
+            ...idoso,
+            // Dados do idoso
+            cpf: idosoCompleto?.cpf || '',
+            tipo: idosoCompleto?.tipo || 'REGULAR',
+            valorMensalidadeBase: idosoCompleto?.valorMensalidadeBase || 0,
+            ativo: idosoCompleto?.ativo !== false,
+            // Dados do responsável
+            responsavel: responsavelCompleto?.nome || idoso.responsavel?.nome || '',
+            cpfResponsavel: responsavelCompleto?.cpf || idoso.responsavel?.cpf || '',
+            // Dados do pagamento
+            dataPagamento: pagamento?.dataPagamento ? new Date(pagamento.dataPagamento).toLocaleDateString('pt-BR') : '',
+            valorPagamento: pagamento?.valorPago ? pagamento.valorPago.toFixed(2).replace('.', ',') : '0,00',
+            numeroNFSE: pagamento?.nfse || '',
+            formaPagamento: pagamento?.formaPagamento || '',
+            pagador: pagamento?.pagador || '',
+            status: pagamento?.status || 'PENDENTE',
+            valorDoacao: pagamento?.valorDoacaoCalculado ? pagamento.valorDoacaoCalculado.toFixed(2).replace('.', ',') : '0,00',
+            // Cálculos
+            beneficio: idosoCompleto?.valorMensalidadeBase ? idosoCompleto.valorMensalidadeBase.toFixed(2).replace('.', ',') : '0,00',
+            percentualBeneficio: 70,
+            valorBeneficio: idosoCompleto?.valorMensalidadeBase ? (idosoCompleto.valorMensalidadeBase * 0.7).toFixed(2).replace('.', ',') : '0,00',
+            doacao: pagamento?.valorDoacaoCalculado ? pagamento.valorDoacaoCalculado.toFixed(2).replace('.', ',') : '0,00'
+          };
+        });
+        
+        // Atualizar dados com informações completas
+        const dataCompleta = {
+          ...data,
+          idosos: idososCompletos
+        };
+        
         // Gerar HTML usando template
-        const htmlContent = getListaIdososHtml(data);
+        const htmlContent = getListaIdososHtml(dataCompleta);
         
         // Criar nova janela para impressão
         const printWindow = window.open('', '_blank');

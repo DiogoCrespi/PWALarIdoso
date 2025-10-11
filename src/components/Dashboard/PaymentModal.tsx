@@ -43,6 +43,8 @@ interface PaymentModalProps {
     valorPago: number;
     dataPagamento?: Date;
     nfse?: string;
+    pagador?: string;
+    formaPagamento?: string;
     status: string;
     observacoes?: string;
   } | null;
@@ -69,6 +71,8 @@ export default function PaymentModal({
     valorPago: '',
     dataPagamento: new Date(),
     nfse: '',
+    pagador: '',
+    formaPagamento: '',
     observacoes: '',
   });
   const [loading, setLoading] = useState(false);
@@ -98,6 +102,8 @@ export default function PaymentModal({
         valorPago: pagamentoExistente?.valorPago?.toString() || '',
         dataPagamento: pagamentoExistente?.dataPagamento || new Date(),
         nfse: pagamentoExistente?.nfse || '',
+        pagador: pagamentoExistente?.pagador || '',
+        formaPagamento: pagamentoExistente?.formaPagamento || '',
         observacoes: pagamentoExistente?.observacoes || '',
       });
       setError(null);
@@ -112,6 +118,17 @@ export default function PaymentModal({
     }));
   };
 
+  // Função para formatar valor quando o campo perde o foco
+  const handleValueBlur = () => {
+    if (formData.valorPago) {
+      const formattedValue = formatValueOnBlur(formData.valorPago);
+      setFormData(prev => ({
+        ...prev,
+        valorPago: formattedValue,
+      }));
+    }
+  };
+
   const showSnackbar = (message: string, severity: 'error' | 'success' | 'warning' | 'info' = 'error') => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
@@ -120,6 +137,51 @@ export default function PaymentModal({
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
+  };
+
+  // Função para normalizar valores (converter vírgula para ponto)
+  const normalizeValue = (value: string | number): number => {
+    if (typeof value === 'number') return value;
+    
+    let normalized = value.toString()
+      .replace(/R\$\s*/g, '') // Remove R$ e espaços
+      .replace(/[^\d.,]/g, ''); // Remove caracteres não numéricos exceto ponto e vírgula
+    
+    // Se tem vírgula, é formato brasileiro (vírgula = decimal)
+    if (normalized.includes(',')) {
+      // Remove pontos de milhares e converte vírgula para ponto
+      normalized = normalized.replace(/\./g, '').replace(',', '.');
+    }
+    // Se tem ponto, verificar se é decimal ou milhares
+    else if (normalized.includes('.')) {
+      // Se tem mais de 2 dígitos após o ponto, é milhares
+      const parts = normalized.split('.');
+      if (parts[1] && parts[1].length > 2) {
+        // É formato de milhares, remover pontos
+        normalized = normalized.replace(/\./g, '');
+      }
+      // Senão, é decimal, manter como está
+    }
+    
+    const result = parseFloat(normalized) || 0;
+    console.log('🔄 Normalizando valor:', value, '→', result);
+    return result;
+  };
+
+  // Função para formatar valor com 2 casas decimais (apenas para exibição)
+  const formatValue = (value: string | number): string => {
+    if (!value) return '';
+    
+    const normalized = normalizeValue(value);
+    return normalized.toFixed(2);
+  };
+
+  // Função para formatar valor apenas quando necessário (não em tempo real)
+  const formatValueOnBlur = (value: string): string => {
+    if (!value) return '';
+    
+    const normalized = normalizeValue(value);
+    return normalized.toFixed(2);
   };
 
   // Funções para upload de NFSE
@@ -184,23 +246,22 @@ export default function PaymentModal({
 
   const handleUseExtractedData = () => {
     if (extractedData && idoso) {
-      // Validar valor baseado no tipo do idoso
-      if (idoso.tipo === 'SOCIAL') {
-        // Idosos SOCIAL: valor pode ser qualquer valor (município paga o restante)
-        // Não há validação de limite
-      } else {
-        // Idosos REGULAR: validar se não excede 70% do salário
-        const valorMaximo = idoso.valorMensalidadeBase * 0.7;
-        if (extractedData.valor > valorMaximo) {
-          setError(`Valor da NFSE (R$ ${extractedData.valor.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
-          return;
-        }
+      // Normalizar valor extraído
+      const valorNormalizado = normalizeValue(extractedData.valor);
+      
+      // Validar valor: não pode exceder 70% do salário do idoso (para todos os tipos)
+      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+      if (valorNormalizado > valorMaximo) {
+        setError(`Valor da NFSE (R$ ${valorNormalizado.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
+        return;
       }
       
       setFormData(prev => ({
         ...prev,
-        valorPago: extractedData.valor.toString(),
+        valorPago: formatValue(valorNormalizado),
         nfse: extractedData.numeroNFSE,
+        pagador: extractedData.nomePessoa || '',
+        formaPagamento: extractedData.formaPagamento || '',
         dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
         observacoes: extractedData.discriminacao
       }));
@@ -229,32 +290,33 @@ export default function PaymentModal({
       }
 
       // Validar valor baseado no tipo do idoso
-      const valorPago = parseFloat(formData.valorPago);
-      if (idoso.tipo === 'SOCIAL') {
-        // Idosos SOCIAL: valor pode ser qualquer valor (município paga o restante)
-        // Não há validação de limite
-      } else {
-        // Idosos REGULAR: validar se não excede 70% do salário
-        const valorMaximo = idoso.valorMensalidadeBase * 0.7;
-        if (valorPago > valorMaximo) {
-          const errorMsg = `Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`;
-          showSnackbar(errorMsg, 'error');
-          throw new Error(errorMsg);
-        }
+      const valorPago = normalizeValue(formData.valorPago);
+      console.log('🔍 Validando pagamento para idoso:', idoso.nome, 'tipo:', idoso.tipo);
+      
+      // Validar valor: não pode exceder 70% do salário do idoso (para todos os tipos)
+      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+      console.log('⚠️ Validação 70% - limite:', valorMaximo, 'valor pago:', valorPago);
+      if (valorPago > valorMaximo) {
+        const errorMsg = `Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`;
+        showSnackbar(errorMsg, 'error');
+        throw new Error(errorMsg);
       }
 
       const dataToSave = {
         idosoId: idoso.id,
         mesReferencia: mes,
         anoReferencia: ano,
-        valorPago: parseFloat(formData.valorPago),
+        valorPago: valorPago, // Já normalizado
         dataPagamento: formData.dataPagamento,
         nfse: formData.nfse || null,
+        pagador: formData.pagador || null,
+        formaPagamento: formData.formaPagamento || null,
         observacoes: formData.observacoes || null,
       };
 
       await onSave(dataToSave);
       setSuccess(true);
+      showSnackbar(pagamentoExistente ? 'Pagamento atualizado com sucesso!' : 'Pagamento salvo com sucesso!', 'success');
       
       // Fechar modal após 3 segundos para dar tempo de ver o feedback
       setTimeout(() => {
@@ -263,7 +325,9 @@ export default function PaymentModal({
       }, 3000);
 
     } catch (err: any) {
-      setError(err.message || 'Erro ao salvar pagamento');
+      const errorMsg = err.message || 'Erro ao salvar pagamento';
+      setError(errorMsg);
+      showSnackbar(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -279,9 +343,12 @@ export default function PaymentModal({
       if (onGerarRecibo) {
         await onGerarRecibo(pagamentoExistente.id);
         setSuccess(true);
+        showSnackbar('Recibo gerado com sucesso!', 'success');
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao gerar recibo');
+      const errorMsg = err.message || 'Erro ao gerar recibo';
+      setError(errorMsg);
+      showSnackbar(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -359,15 +426,74 @@ export default function PaymentModal({
                 <Typography variant="subtitle2" gutterBottom>
                   Informações do Idoso
                 </Typography>
-                <Typography variant="body2">
-                  <strong>Nome:</strong> {idoso?.nome}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Responsável:</strong> {idoso?.responsavel?.nome}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Mensalidade Base:</strong> R$ {valorBase.toFixed(2)}
-                </Typography>
+                
+                {/* Dados Básicos */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Nome do Idoso:</strong> {idoso?.nome} *
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>CPF:</strong> {idoso?.cpf}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Mensalidade Base:</strong> R$ {valorBase.toFixed(2)}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Benefício:</strong> {valorBase.toFixed(2)} X 70% = R$ {(valorBase * 0.7).toFixed(2)}
+                  </Typography>
+                </Box>
+
+                {/* Dados do Responsável */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>RESPONSAVEL:</strong> {idoso?.responsavel?.nome}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>CPF Responsável:</strong> {idoso?.responsavel?.cpf}
+                  </Typography>
+                </Box>
+
+                {/* Dados do Pagamento (se existir) */}
+                {pagamentoExistente && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      <strong>Data Pagamento:</strong> {formData.dataPagamento ? new Date(formData.dataPagamento).toLocaleDateString('pt-BR') : 'Não informada'} R$ {formData.valorPago || '0,00'}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Referência:</strong> {mes.toString().padStart(2, '0')}/{ano}
+                    </Typography>
+                    {formData.nfse && (
+                      <Typography variant="body2">
+                        <strong>NFS-e:</strong> {formData.nfse}
+                      </Typography>
+                    )}
+                    {formData.pagador && (
+                      <Typography variant="body2">
+                        <strong>Pagador:</strong> {formData.pagador}
+                      </Typography>
+                    )}
+                    {formData.formaPagamento && (
+                      <Typography variant="body2">
+                        <strong>Forma pagamento:</strong> {formData.formaPagamento}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+
+                {/* Cálculo de Doação */}
+                {formData.valorPago && (
+                  <Box sx={{ mb: 2 }}>
+                    {(() => {
+                      const valorPago = normalizeValue(formData.valorPago);
+                      const valorDoacao = Math.max(0, valorPago - (valorBase * 0.7));
+                      return (
+                        <Typography variant="body2">
+                          <strong>Doação:</strong> R$ {valorDoacao.toFixed(2)}
+                        </Typography>
+                      );
+                    })()}
+                  </Box>
+                )}
               </Box>
             </Grid>
 
@@ -507,21 +633,12 @@ export default function PaymentModal({
                     variant="outlined"
                   />
                 )}
-                {idoso?.tipo === 'SOCIAL' ? (
-                  <Chip
-                    label="SOCIAL - Valor Fixo (Município paga restante)"
-                    color="secondary"
-                    size="small"
-                    variant="outlined"
-                  />
-                ) : idoso?.tipo === 'REGULAR' ? (
-                  <Chip
-                    label={`Limite: R$ ${(valorBase * 0.7).toFixed(2)} (70%)`}
-                    color="warning"
-                    size="small"
-                    variant="outlined"
-                  />
-                ) : null}
+                <Chip
+                  label={`Limite: R$ ${(valorBase * 0.7).toFixed(2)} (70%)`}
+                  color="warning"
+                  size="small"
+                  variant="outlined"
+                />
               </Box>
             </Grid>
 
@@ -532,11 +649,12 @@ export default function PaymentModal({
               <TextField
                 fullWidth
                 label="Valor Pago (R$)"
-                type="number"
+                type="text"
                 value={formData.valorPago}
                 onChange={(e) => handleInputChange('valorPago', e.target.value)}
-                inputProps={{ min: 0, step: 0.01 }}
-                helperText={`Mensalidade base: R$ ${valorBase.toFixed(2)}`}
+                onBlur={handleValueBlur}
+                placeholder="Ex: 1062.60 ou 1062,60"
+                helperText={`Mensalidade base: R$ ${valorBase.toFixed(2)} - Aceita ponto ou vírgula como centavos`}
               />
             </Grid>
 
@@ -560,6 +678,28 @@ export default function PaymentModal({
                 value={formData.nfse}
                 onChange={(e) => handleInputChange('nfse', e.target.value)}
                 placeholder="Ex: 1491"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Pagador"
+                value={formData.pagador}
+                onChange={(e) => handleInputChange('pagador', e.target.value)}
+                placeholder="Nome de quem está pagando"
+                helperText="Nome da pessoa/empresa que está efetuando o pagamento"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Forma de Pagamento"
+                value={formData.formaPagamento}
+                onChange={(e) => handleInputChange('formaPagamento', e.target.value)}
+                placeholder="Ex: PIX, DINHEIRO, PIX BB, PIX SICREDI"
+                helperText="Forma como o pagamento foi efetuado"
               />
             </Grid>
 
@@ -607,6 +747,22 @@ export default function PaymentModal({
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Snackbar para notificações */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </LocalizationProvider>
   );
 }

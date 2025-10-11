@@ -40,10 +40,16 @@ Analise este PDF de Nota Fiscal de Serviço Eletrônica (NFSE) e extraia as segu
 
 Instruções:
 - numeroNFSE: Encontre o número da NFSE (geralmente 4+ dígitos)
-- dataPrestacao: Data de emissão ou prestação no formato brasileiro
+- dataPrestacao: Data de emissão ou prestação no formato brasileiro (DD/MM/AAAA)
 - discriminacao: Texto completo da discriminação do serviço
-- valor: Valor total em número (sem R$, pontos ou vírgulas)
-- nomePessoa: Nome completo do tomador/prestador do serviço
+- valor: Valor total como número decimal usando PONTO (ex: 1062.60, não 1.062,60)
+- nomePessoa: Nome completo do TOMADOR DO SERVIÇO (quem está pagando), NÃO o prestador
+
+IMPORTANTE: 
+- Para o campo "valor", use sempre ponto como separador decimal (ex: 1062.60) e NÃO use vírgula.
+- Para o campo "nomePessoa", procure por "TOMADOR DO SERVIÇO" ou "DADOS DO TOMADOR" - esta é a pessoa/empresa que está PAGANDO.
+- NÃO use o "PRESTADOR DO SERVIÇO" - este é quem está RECEBENDO o pagamento.
+- Se houver um nome específico na discriminação do serviço, use esse nome.
 
 Retorne APENAS o JSON válido, sem explicações adicionais.
 `;

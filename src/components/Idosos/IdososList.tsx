@@ -31,6 +31,8 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   Block as BlockIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -46,6 +48,7 @@ export default function IdososList({ onRefresh }: IdososListProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingIdoso, setEditingIdoso] = useState<Idoso | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -157,12 +160,18 @@ export default function IdososList({ onRefresh }: IdososListProps) {
     }).format(value);
   };
 
-  const filteredIdosos = idosos.filter(idoso =>
-    idoso.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    idoso.responsavel?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    idoso.cpf?.includes(searchTerm) ||
-    idoso.responsavel?.cpf.includes(searchTerm)
-  );
+  const filteredIdosos = idosos.filter(idoso => {
+    // Filtro por busca
+    const matchesSearch = idoso.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      idoso.responsavel?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      idoso.cpf?.includes(searchTerm) ||
+      idoso.responsavel?.cpf.includes(searchTerm);
+    
+    // Filtro por status ativo/inativo
+    const matchesStatus = showInactive || idoso.ativo;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -179,14 +188,31 @@ export default function IdososList({ onRefresh }: IdososListProps) {
         <Typography variant="h5" component="h2">
           Gerenciar Idosos ({filteredIdosos.length})
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAdd}
-          sx={{ minWidth: 140 }}
-        >
-          Novo Idoso
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <IconButton
+            onClick={() => setShowInactive(!showInactive)}
+            color={showInactive ? 'primary' : 'default'}
+            title={showInactive ? 'Ocultar inativos' : 'Mostrar inativos'}
+            sx={{ 
+              border: '1px solid', 
+              borderColor: showInactive ? 'primary.main' : 'divider',
+              '&:hover': {
+                borderColor: 'primary.main',
+                backgroundColor: 'primary.50'
+              }
+            }}
+          >
+            {showInactive ? <VisibilityIcon /> : <VisibilityOffIcon />}
+          </IconButton>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAdd}
+            sx={{ minWidth: 140 }}
+          >
+            Novo Idoso
+          </Button>
+        </Box>
       </Box>
 
       {/* Campo de busca */}
@@ -292,7 +318,7 @@ export default function IdososList({ onRefresh }: IdososListProps) {
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                       <Chip
                         label={idoso.ativo ? 'Ativo' : 'Inativo'}
-                        color={idoso.ativo ? 'success' : 'default'}
+                        color={idoso.ativo ? 'success' : 'error'}
                         size="small"
                       />
                       {idoso.tipo === 'SOCIAL' && (

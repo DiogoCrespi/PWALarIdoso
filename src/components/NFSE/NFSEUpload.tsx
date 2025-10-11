@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -31,6 +31,7 @@ interface NFSEData {
   mesReferencia: string;
   valor: number;
   nomePessoa: string;
+  pagadorNome?: string;
   arquivo: File;
 }
 
@@ -41,6 +42,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
   const [extractedData, setExtractedData] = useState<Partial<NFSEData>>({});
   const [mesReferencia, setMesReferencia] = useState('');
   const [usingGemini, setUsingGemini] = useState<boolean | null>(null);
+  const [pagadorNome, setPagadorNome] = useState('');
 
   // Gerar lista de meses para seleção
   const generateMonths = () => {
@@ -120,6 +122,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
       mesReferencia,
       valor: extractedData.valor || 0,
       nomePessoa: extractedData.nomePessoa!,
+      pagadorNome: pagadorNome.trim() || undefined,
       arquivo: uploadedFile!
     };
 
@@ -129,6 +132,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
     setUploadedFile(null);
     setExtractedData({});
     setMesReferencia('');
+    setPagadorNome('');
     setError(null);
   };
 
@@ -277,6 +281,17 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                 </Select>
               </FormControl>
             </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Pagador (Opcional)"
+                value={pagadorNome}
+                onChange={(e) => setPagadorNome(e.target.value)}
+                placeholder="Digite o nome do pagador"
+                helperText="Nome da pessoa ou empresa que está pagando a NFSE"
+              />
+            </Grid>
           </Grid>
 
           <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
@@ -286,6 +301,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                 setUploadedFile(null);
                 setExtractedData({});
                 setMesReferencia('');
+                setPagadorNome('');
                 setUsingGemini(null);
                 setError(null);
               }}

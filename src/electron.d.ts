@@ -37,6 +37,8 @@ export interface Pagamento {
   valorPago: number;
   dataPagamento?: Date;
   nfse?: string;
+  pagador?: string;
+  formaPagamento?: string;
   status: 'PENDENTE' | 'PARCIAL' | 'PAGO';
   valorDoacaoCalculado: number;
   caminhoReciboDoacao?: string;
@@ -133,6 +135,9 @@ export interface ElectronAPI {
   templates: {
     gerarMensalidade: (data: any) => Promise<{ fileName: string; path: string }>;
     gerarListaIdosos: (data: any) => Promise<{ fileName: string; path: string }>;
+  };
+  backup: {
+    gerarCSV: () => Promise<{ fileName: string; content: string; stats: any }>;
   };
 }
 

@@ -33,6 +33,8 @@ import {
   Email as EmailIcon,
   Add as AddIcon,
   Block as BlockIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
 import ResponsavelForm from './ResponsavelForm';
 
@@ -62,6 +64,7 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedResponsavel, setSelectedResponsavel] = useState<Responsavel | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -105,12 +108,18 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
   }, []);
 
   // Filtrar responsáveis
-  const filteredResponsaveis = responsaveis.filter(responsavel =>
-    responsavel.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    responsavel.cpf.includes(searchTerm) ||
-    responsavel.contatoTelefone?.includes(searchTerm) ||
-    responsavel.contatoEmail?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredResponsaveis = responsaveis.filter(responsavel => {
+    // Filtro por busca
+    const matchesSearch = responsavel.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      responsavel.cpf.includes(searchTerm) ||
+      responsavel.contatoTelefone?.includes(searchTerm) ||
+      responsavel.contatoEmail?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtro por status ativo/inativo
+    const matchesStatus = showInactive || responsavel.ativo;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   // Abrir menu de ações
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, responsavel: Responsavel) => {
@@ -229,6 +238,34 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
     return idosos?.filter(idoso => idoso.ativo).length || 0;
   };
 
+  // Determinar cor do status baseado no responsável e idosos
+  const getStatusColor = (responsavel: Responsavel) => {
+    if (!responsavel.ativo) {
+      return 'error'; // Vermelho: responsável inativo
+    }
+    
+    const idososAtivos = countIdososAtivos(responsavel.idosos);
+    if (idososAtivos > 0) {
+      return 'success'; // Verde: responsável ativo com idosos ativos
+    } else {
+      return 'warning'; // Amarelo: responsável ativo mas sem idosos ativos
+    }
+  };
+
+  // Determinar label do status
+  const getStatusLabel = (responsavel: Responsavel) => {
+    if (!responsavel.ativo) {
+      return 'Inativo';
+    }
+    
+    const idososAtivos = countIdososAtivos(responsavel.idosos);
+    if (idososAtivos > 0) {
+      return 'Ativo';
+    } else {
+      return 'Sem Idosos Ativos';
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -255,14 +292,31 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
           sx={{ minWidth: 300 }}
         />
         
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleNew}
-          sx={{ ml: 2 }}
-        >
-          Novo Responsável
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <IconButton
+            onClick={() => setShowInactive(!showInactive)}
+            color={showInactive ? 'primary' : 'default'}
+            title={showInactive ? 'Ocultar inativos' : 'Mostrar inativos'}
+            sx={{ 
+              border: '1px solid', 
+              borderColor: showInactive ? 'primary.main' : 'divider',
+              '&:hover': {
+                borderColor: 'primary.main',
+                backgroundColor: 'primary.50'
+              }
+            }}
+          >
+            {showInactive ? <VisibilityIcon /> : <VisibilityOffIcon />}
+          </IconButton>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleNew}
+            sx={{ ml: 2 }}
+          >
+            Novo Responsável
+          </Button>
+        </Box>
       </Box>
 
       {/* Lista de responsáveis */}
@@ -278,22 +332,15 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
                 <CardContent sx={{ flexGrow: 1 }}>
                   {/* Header do card */}
                   <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                    <Box display="flex" alignItems="center">
-                      <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                    <Box display="flex" alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+                      <Avatar sx={{ bgcolor: 'primary.main', mr: 2, flexShrink: 0 }}>
                         <PersonIcon />
                       </Avatar>
-                      <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                          <Typography variant="h6" component="h3" noWrap>
-                            {responsavel.nome}
-                          </Typography>
-                          <Chip
-                            label={responsavel.ativo ? 'Ativo' : 'Inativo'}
-                            color={responsavel.ativo ? 'success' : 'default'}
-                            size="small"
-                          />
-                        </Box>
-                        <Typography variant="body2" color="text.secondary">
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="h6" component="h3" noWrap mb={0.5}>
+                          {responsavel.nome}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" noWrap>
                           CPF: {formatCPF(responsavel.cpf)}
                         </Typography>
                       </Box>
@@ -302,9 +349,20 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
                     <IconButton
                       onClick={(e) => handleMenuOpen(e, responsavel)}
                       size="small"
+                      sx={{ flexShrink: 0, ml: 1 }}
                     >
                       <MoreVertIcon />
                     </IconButton>
+                  </Box>
+
+                  {/* Status do responsável */}
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Chip
+                      label={getStatusLabel(responsavel)}
+                      color={getStatusColor(responsavel) as any}
+                      size="small"
+                    />
+                    <Box />
                   </Box>
 
                   <Divider sx={{ my: 2 }} />

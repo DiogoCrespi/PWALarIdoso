@@ -36,6 +36,7 @@ interface MensalidadeData {
   numeroNFSE: string;
   nomeResponsavel: string;
   cpfResponsavel: string;
+  tipoIdoso?: 'REGULAR' | 'SOCIAL';
 }
 
 const MensalidadeTemplate: React.FC = () => {
@@ -52,7 +53,8 @@ const MensalidadeTemplate: React.FC = () => {
     formaPagamento: 'PIX BB',
     numeroNFSE: '1409',
     nomeResponsavel: 'Antônio Marcos Bonassa',
-    cpfResponsavel: '726.052.279-87'
+    cpfResponsavel: '726.052.279-87',
+    tipoIdoso: 'REGULAR'
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -214,6 +216,20 @@ const MensalidadeTemplate: React.FC = () => {
               
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
+                  <InputLabel>Tipo do Idoso</InputLabel>
+                  <Select
+                    value={formData.tipoIdoso || 'REGULAR'}
+                    onChange={(e) => handleInputChange('tipoIdoso', e.target.value)}
+                    label="Tipo do Idoso"
+                  >
+                    <MenuItem value="REGULAR">REGULAR</MenuItem>
+                    <MenuItem value="SOCIAL">SOCIAL</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
                   <InputLabel>Forma de Pagamento</InputLabel>
                   <Select
                     value={formData.formaPagamento}
@@ -287,13 +303,21 @@ const MensalidadeTemplate: React.FC = () => {
                 
                 <Divider sx={{ my: 1 }} />
                 
-                <Typography variant="body2" gutterBottom>
-                  <strong>Benefício:</strong> {formatCurrency(formData.beneficio)} × {formData.percentualBeneficio}% = {formatCurrency(formData.valorBeneficio)}
-                </Typography>
-                
-                <Typography variant="body2" gutterBottom color="success.main">
-                  <strong>Doação:</strong> {formatCurrency(formData.doacao)}
-                </Typography>
+                {formData.tipoIdoso === 'SOCIAL' ? (
+                  <Typography variant="body2" gutterBottom color="success.main">
+                    <strong>SOMENTE NOTA SOCIAL</strong>
+                  </Typography>
+                ) : (
+                  <>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Benefício:</strong> {formatCurrency(formData.beneficio)} × {formData.percentualBeneficio}% = {formatCurrency(formData.valorBeneficio)}
+                    </Typography>
+                    
+                    <Typography variant="body2" gutterBottom color="success.main">
+                      <strong>Doação:</strong> {formatCurrency(formData.doacao)}
+                    </Typography>
+                  </>
+                )}
                 
                 <Divider sx={{ my: 1 }} />
                 

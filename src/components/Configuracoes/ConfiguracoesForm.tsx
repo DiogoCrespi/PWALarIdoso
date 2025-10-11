@@ -128,32 +128,33 @@ const ConfiguracoesForm: React.FC = () => {
     try {
       setLoading(true);
       
-      // Buscar todos os dados
-      const [responsaveis, idosos, pagamentos] = await Promise.all([
-        window.electronAPI?.responsaveis.list() || [],
-        window.electronAPI?.idosos.list() || [],
-        // Simular pagamentos (em produção viria da API)
-        [
-          { id: 1, idosoId: 1, mesReferencia: 9, anoReferencia: 2025, valorPago: 2500, status: 'PAGO' },
-          { id: 2, idosoId: 1, mesReferencia: 10, anoReferencia: 2025, valorPago: 1500, status: 'PARCIAL' },
-        ]
-      ]);
-
-      // Gerar CSV
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const nomeArquivo = `backup_lar_idosos_${timestamp}.csv`;
+      // Usar a função de backup do mock API
+      const backupData = await window.electronAPI?.backup.gerarCSV();
       
-      // Simular geração de CSV
-      const csvContent = gerarCSVContent(responsaveis, idosos, pagamentos);
-      
-      // Simular download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = nomeArquivo;
-      link.click();
-      
-      mostrarSnackbar(`Backup gerado: ${nomeArquivo}`, 'success');
+      if (backupData) {
+        // Gerar download do CSV
+        const blob = new Blob([backupData.content], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = backupData.fileName;
+        link.click();
+        
+        // Mostrar estatísticas do backup
+        const stats = backupData.stats;
+        const message = `Backup gerado: ${backupData.fileName}\n` +
+          `📊 Dados incluídos:\n` +
+          `   - Responsáveis: ${stats.responsaveis}\n` +
+          `   - Idosos: ${stats.idosos}\n` +
+          `   - Pagamentos: ${stats.pagamentos}\n` +
+          `   - Configurações: ${stats.configuracoes}\n` +
+          `   - Notas Fiscais: ${stats.notasFiscais}`;
+        
+        mostrarSnackbar(message, 'success');
+        console.log('✅ Backup gerado com sucesso:', backupData.fileName);
+        console.log('📊 Estatísticas:', stats);
+      } else {
+        throw new Error('Falha ao gerar backup');
+      }
     } catch (error) {
       console.error('Erro ao gerar backup:', error);
       mostrarSnackbar('Erro ao gerar backup', 'error');
@@ -162,27 +163,6 @@ const ConfiguracoesForm: React.FC = () => {
     }
   };
 
-  const gerarCSVContent = (responsaveis: any[], idosos: any[], pagamentos: any[]) => {
-    let csv = 'TIPO,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,DATA_PAGAMENTO\n';
-    
-    // Responsáveis
-    responsaveis.forEach(r => {
-      csv += `RESPONSAVEL,"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,\n`;
-    });
-    
-    // Idosos
-    idosos.forEach(i => {
-      csv += `IDOSO,"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase}",,,,\n`;
-    });
-    
-    // Pagamentos
-    pagamentos.forEach(p => {
-      const idoso = idosos.find(i => i.id === p.idosoId);
-      csv += `PAGAMENTO,"${idoso?.nome || ''}","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.dataPagamento || ''}"\n`;
-    });
-    
-    return csv;
-  };
 
   const adicionarBackupAgendado = () => {
     const novoBackupAgendado: BackupAgendado = {
@@ -307,19 +287,19 @@ const ConfiguracoesForm: React.FC = () => {
                       <ListItemText
                         primary={backup.nome}
                         secondary={
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">
+                          <>
+                            <Typography variant="body2" color="text.secondary" component="span" display="block">
                               Caminho: {backup.caminho}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="body2" color="text.secondary" component="span" display="block">
                               Próximo: {new Date(backup.dataAgendamento).toLocaleDateString('pt-BR')}
                             </Typography>
                             {backup.ultimoBackup && (
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" component="span" display="block">
                                 Último: {new Date(backup.ultimoBackup).toLocaleDateString('pt-BR')}
                               </Typography>
                             )}
-                          </Box>
+                          </>
                         }
                       />
                       <ListItemSecondaryAction>

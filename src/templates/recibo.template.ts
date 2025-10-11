@@ -147,6 +147,10 @@ export const getReciboMensalidadeHtml = (data: any): string => {
             font-size: 14px;
             margin-top: 10px;
           }
+          .social-text {
+            color: #4caf50;
+            font-weight: bold;
+          }
         </style>
       </head>
       <body>
@@ -345,7 +349,7 @@ export const getReciboMensalidadeHtml = (data: any): string => {
         <div class="container">
           <div class="header">
             <div class="logo">LAR DOS IDOSOS</div>
-            <h1>LISTA DE IDOSOS - ${data.mesReferencia}</h1>
+            <h1>MENSALIDADE LAR DOS IDOSOS – ${data.mesReferencia}</h1>
             <h2>Formato: ${data.formato}</h2>
           </div>
           
@@ -355,45 +359,58 @@ export const getReciboMensalidadeHtml = (data: any): string => {
           
           ${data.idosos?.map((idoso: any) => `
             <div class="idoso-card">
-              <div class="idoso-title">Nome do Idoso: ${idoso.nome}</div>
+              <div class="idoso-title">Nome do Idoso: ${idoso.nome} ${idoso.ativo ? '*' : ''}</div>
               
+              ${idoso.dataPagamento ? `
               <div class="field-row">
                 <span class="field-label">Data Pagamento:</span>
-                <span class="field-value"><strong>${idoso.dataPagamento || 'N/A'} R$ ${idoso.valorPagamento || '0,00'}</strong></span>
+                <span class="field-value"><strong>${idoso.dataPagamento} R$ ${idoso.valorPagamento}</strong></span>
               </div>
+              ` : ''}
               
               <div class="field-row">
                 <span class="field-label">Referência:</span>
                 <span class="field-value"><strong>${data.mesReferencia}</strong></span>
               </div>
               
+              ${idoso.tipo === 'SOCIAL' ? `
+              <div class="field-row">
+                <span class="field-label">SOMENTE NOTA</span>
+                <span class="field-value"><strong><span class="social-text">SOCIAL</span></strong></span>
+              </div>
+              ` : `
               <div class="field-row">
                 <span class="field-label">Benefício:</span>
-                <span class="field-value"><strong>${idoso.beneficio || '0,00'} X ${idoso.percentualBeneficio || 70}% = ${idoso.valorBeneficio || '0,00'}</strong></span>
+                <span class="field-value"><strong>${idoso.beneficio} X ${idoso.percentualBeneficio}% = ${idoso.valorBeneficio}</strong></span>
               </div>
               
               <div class="field-row">
                 <span class="field-label">Doação:</span>
-                <span class="field-value"><span class="donation">R$ ${idoso.doacao || '0,00'}</span></span>
+                <span class="field-value"><span class="donation">R$ ${idoso.doacao}</span></span>
               </div>
+              `}
               
               <div class="field-row">
                 <span class="field-label">CPF:</span>
                 <span class="field-value"><strong>${idoso.cpf || 'N/A'}</strong></span>
               </div>
               
+              ${idoso.formaPagamento ? `
               <div class="field-row">
-                <span class="field-label">Forma Pagamento:</span>
-                <span class="field-value"><strong>${idoso.formaPagamento || 'N/A'}</strong></span>
+                <span class="field-label">Forma pagamento:</span>
+                <span class="field-value"><strong>${idoso.formaPagamento}</strong></span>
               </div>
+              ` : ''}
               
+              ${idoso.numeroNFSE ? `
               <div class="field-row">
                 <span class="field-label">NFS-e:</span>
-                <span class="field-value"><strong>${idoso.numeroNFSE || 'N/A'}</strong></span>
+                <span class="field-value"><strong>${idoso.numeroNFSE}</strong></span>
               </div>
+              ` : ''}
               
               <div class="field-row">
-                <span class="field-label">RESPONSÁVEL:</span>
+                <span class="field-label">RESPONSAVEL:</span>
                 <span class="field-value"><strong>${idoso.responsavel || 'N/A'}</strong></span>
               </div>
               
