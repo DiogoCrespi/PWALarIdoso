@@ -343,12 +343,92 @@ export const getReciboMensalidadeHtml = (data: any): string => {
             color: #00843D;
             font-size: 16px;
           }
+          .social-text {
+            color: #4caf50;
+            font-weight: bold;
+          }
+          .logo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: auto;
+          }
+          .header-text {
+            text-align: center;
+            margin-left: 0.5px;
+          }
+          .institution-name {
+            font-family: 'Calibri', sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            line-height: 1.3;
+          }
+          .institution-info {
+            font-family: 'Calibri', sans-serif;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 20px;
+          }
+          .recibo-header {
+            text-align: center;
+            margin: 80px 0 50px 0;
+          }
+          .date-location {
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            margin-bottom: 50px;
+            text-align: center;
+          }
+          .signature-section {
+            text-align: center;
+            margin-top: 50px;
+          }
+          .signature-line {
+            border-bottom: 1px solid #333;
+            width: 300px;
+            margin: 0 auto 10px auto;
+            height: 1px;
+          }
+          .signature-text {
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            margin-top: 10px;
+          }
+          .recibo-header h1 {
+            font-size: 20px;
+            margin: 0;
+            color: #00843D;
+            font-weight: bold;
+          }
+          .recibo-header h2 {
+            font-size: 16px;
+            margin: 10px 0 0 0;
+            color: #005A2A;
+            font-weight: normal;
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <div class="logo">LAR DOS IDOSOS</div>
+            <img src="/logo.png" alt="Logo" class="logo" />
+            <div class="header-text">
+              <div class="institution-name">
+                ASSOCIAÇÃO FILHAS DE SÃO CAMILO – LAR DOS IDOSOS NOSSA SENHORA DA SAÚDE
+              </div>
+              <div class="institution-info">
+                Rua Alfredo Chaves, nº 778 | Centro | CEP: 85.887-000 | Matelândia/PR | Cx. Postal nº 149 |<br>
+                Fone (45)3262-1251 | e-mail: larnssaude@gmail.com.br<br>
+                CNPJ: 61.986.402/0019-20 | Inscrição Estadual: Isento
+              </div>
+            </div>
+          </div>
+          
+          <div class="recibo-header">
             <h1>MENSALIDADE LAR DOS IDOSOS – ${data.mesReferencia}</h1>
             <h2>Formato: ${data.formato}</h2>
           </div>
@@ -422,9 +502,17 @@ export const getReciboMensalidadeHtml = (data: any): string => {
           `).join('') || '<div class="idoso-card"><div class="idoso-title">Nenhum idoso encontrado.</div></div>'}
           
           <div class="footer">
-            <p><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
-            <p><strong>Lar dos Idosos - CNPJ:</strong> XX.XXX.XXX/0001-XX</p>
-            <p><strong>Endereço:</strong> Rua das Flores, 123 - Centro - Cidade/UF</p>
+            <div class="date-location">
+              Matelândia, ${new Date().getDate()} de ${new Date().toLocaleDateString('pt-BR', { month: 'long' })} de ${new Date().getFullYear()}.
+            </div>
+            
+            <div class="signature-section">
+              <div class="signature-line"></div>
+              <div class="signature-text">
+                <br>Associação Filhas de São Camilo<br><br>
+                Lar dos Idosos Nossa Senhora da Saúde
+              </div>
+            </div>
           </div>
         </div>
       </body>
