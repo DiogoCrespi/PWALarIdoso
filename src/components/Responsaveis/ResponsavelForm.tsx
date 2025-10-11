@@ -12,12 +12,14 @@ import {
   CircularProgress,
   Grid,
   InputAdornment,
+  Chip,
 } from '@mui/material';
 import {
   Person as PersonIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
 } from '@mui/icons-material';
+import { identifyDocument, validateCPF } from '../../utils/documentValidation';
 
 interface Responsavel {
   id: number;
@@ -48,6 +50,7 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [documentType, setDocumentType] = useState<'CPF' | 'CNPJ' | null>(null);
 
   // Resetar formulário quando abrir/fechar
   useEffect(() => {
@@ -68,45 +71,10 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
         });
       }
       setErrors({});
+      setDocumentType(null);
     }
   }, [open, responsavel]);
 
-  // Validar CPF
-  const validarCPF = (cpf: string): boolean => {
-    // Remove caracteres não numéricos
-    const cpfLimpo = cpf.replace(/\D/g, '');
-    
-    // Verifica se tem 11 dígitos
-    if (cpfLimpo.length !== 11) return false;
-    
-    // Verifica se todos os dígitos são iguais
-    if (/^(\d)\1{10}$/.test(cpfLimpo)) return false;
-    
-    // Validação do algoritmo do CPF
-    let soma = 0;
-    for (let i = 0; i < 9; i++) {
-      soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
-    }
-    let resto = 11 - (soma % 11);
-    if (resto === 10 || resto === 11) resto = 0;
-    if (resto !== parseInt(cpfLimpo.charAt(9))) return false;
-    
-    soma = 0;
-    for (let i = 0; i < 10; i++) {
-      soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
-    }
-    resto = 11 - (soma % 11);
-    if (resto === 10 || resto === 11) resto = 0;
-    if (resto !== parseInt(cpfLimpo.charAt(10))) return false;
-    
-    return true;
-  };
-
-  // Formatar CPF
-  const formatarCPF = (value: string): string => {
-    const cpfLimpo = value.replace(/\D/g, '');
-    return cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-  };
 
   // Validar email
   const validarEmail = (email: string): boolean => {
@@ -137,7 +105,7 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
     if (!formData.cpf.trim()) {
       novosErros.cpf = 'CPF é obrigatório';
       console.log('❌ Erro: CPF é obrigatório');
-    } else if (!validarCPF(formData.cpf)) {
+    } else if (!validateCPF(formData.cpf)) {
       novosErros.cpf = 'CPF inválido';
       console.log('❌ Erro: CPF inválido:', formData.cpf);
     } else {
@@ -177,12 +145,23 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
     }
   };
 
-  // Lidar com CPF (formatação automática)
+  // Lidar com CPF/CNPJ (detecção automática e formatação)
   const handleCPFChange = (value: string) => {
-    const cpfLimpo = value.replace(/\D/g, '');
-    if (cpfLimpo.length <= 11) {
-      const cpfFormatado = formatarCPF(cpfLimpo);
-      handleChange('cpf', cpfFormatado);
+    const docInfo = identifyDocument(value);
+    
+    if (docInfo.type === 'INVALID') {
+      setDocumentType(null);
+      setErrors(prev => ({ ...prev, cpf: 'Documento inválido' }));
+    } else {
+      setDocumentType(docInfo.type);
+      
+      if (docInfo.isValid) {
+        setErrors(prev => ({ ...prev, cpf: '' }));
+        handleChange('cpf', docInfo.formatted);
+      } else {
+        setErrors(prev => ({ ...prev, cpf: `${docInfo.type} inválido` }));
+        handleChange('cpf', docInfo.formatted);
+      }
     }
   };
 
@@ -269,12 +248,22 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="CPF"
+                label={documentType ? `${documentType} do Responsável` : 'CPF/CNPJ do Responsável'}
                 value={formData.cpf}
                 onChange={(e) => handleCPFChange(e.target.value)}
                 error={!!errors.cpf}
-                helperText={errors.cpf || 'Digite apenas números'}
-                placeholder="000.000.000-00"
+                helperText={errors.cpf || (documentType ? `Formato: ${documentType === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00'}` : 'Digite CPF (11 dígitos) ou CNPJ (14 dígitos)')}
+                placeholder={documentType ? (documentType === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00') : '000.000.000-00 ou 00.000.000/0000-00'}
+                InputProps={{
+                  endAdornment: documentType && (
+                    <Chip 
+                      label={documentType} 
+                      size="small" 
+                      color={errors.cpf ? 'error' : 'success'}
+                      variant="outlined"
+                    />
+                  )
+                }}
                 required
               />
             </Grid>

@@ -24,21 +24,7 @@ const saveToStorage = (key: string, data: any) => {
 
 // Arrays em memória para simular banco de dados (com persistência)
 const getNotasFiscaisMock = () => {
-  const defaultData = [
-    {
-      id: '1',
-      numeroNFSE: '1497',
-      dataPrestacao: '03/10/2025',
-      discriminacao: 'Valor referente a participação no custeio da entidade. Referente ao mês de junho de 2025. Conforme PIX Sicredi.',
-      mesReferencia: '10/2025',
-      valor: 2800.00,
-      nomePessoa: 'IVONI LUCIA HANAUER',
-      idosoId: '1',
-      idosoNome: 'Ana Sangaleti Bonassa',
-      responsavelNome: 'Antônio Marcos Bonassa',
-      dataUpload: new Date('2025-10-03').toISOString()
-    }
-  ];
+  const defaultData: any[] = [];
   
   return getFromStorage('notasFiscaisMock', defaultData);
 };
@@ -56,6 +42,7 @@ const getResponsaveisMock = () => {
       contatoTelefone: '(45) 99999-9999',
       contatoEmail: 'teste@email.com',
       idosos: [],
+      ativo: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -66,6 +53,7 @@ const getResponsaveisMock = () => {
       contatoTelefone: '(45) 98888-7777',
       contatoEmail: 'maria.silva@email.com',
       idosos: [],
+      ativo: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -94,33 +82,56 @@ const getIdososMock = () => {
         contatoEmail: 'teste@email.com',
       },
       valorMensalidadeBase: 2500.00,
+      tipo: 'REGULAR',
       ativo: true,
       observacoes: 'Registro de teste',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    {
-      id: 2,
-      nome: 'Maria Silva Santos',
-      cpf: '123.456.789-00',
-      dataNascimento: '1945-05-15',
-      responsavelId: 1,
-      responsavel: {
-        id: 1,
-        nome: 'Responsável de Teste',
-        cpf: '000.000.000-00',
-        contatoTelefone: '(45) 99999-9999',
-        contatoEmail: 'teste@email.com',
-      },
-      valorMensalidadeBase: 2800.00,
-      ativo: true,
-      observacoes: 'Teste de cadastro manual',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
   ];
   
-  return getFromStorage('idososMock', defaultData);
+  const data = getFromStorage('idososMock', defaultData);
+  
+  // Migrar dados existentes: garantir que todos os idosos tenham o campo 'tipo'
+  const migratedData = data.map(idoso => {
+    let tipo = idoso.tipo || 'REGULAR';
+    
+    // Identificar idosos que deveriam ser SOCIAL baseado no nome
+    const nomesSocial = [
+      'OLICIO DOS SANTOS',
+      'Pe. Jose Antonio Dalla Dasparina',
+      'José Maria de Souza',
+      'Lourdes Maria Anderle',
+      'Lourdes Meneguzzi Valentini',
+      'Maria Adolina Scherer',
+      'Maria Ines Jung',
+      'Mauri Antonio de Moraes',
+      'Nadir Rodrigues',
+      'Rainilda Defreyn Kruger',
+      'Rosa Terhorst',
+      'Aloisio Luiz Grumicher'
+    ];
+    
+    if (nomesSocial.includes(idoso.nome)) {
+      tipo = 'SOCIAL';
+    }
+    
+    if (!idoso.tipo) {
+      console.log('🔄 Migrando idoso:', idoso.nome, 'para tipo:', tipo);
+    }
+    
+    return {
+      ...idoso,
+      tipo: tipo
+    };
+  });
+  
+  // Salvar dados migrados se houve mudanças
+  if (migratedData.some((idoso, index) => idoso.tipo !== data[index]?.tipo)) {
+    saveIdososMock(migratedData);
+  }
+  
+  return migratedData;
 };
 
 const saveIdososMock = (data: any[]) => {
@@ -128,50 +139,7 @@ const saveIdososMock = (data: any[]) => {
 };
 
 const getPagamentosMock = () => {
-  const defaultData = [
-    {
-      id: 1,
-      idosoId: 1,
-      mesReferencia: 9,
-      anoReferencia: 2025,
-      valorPago: 2500,
-      dataPagamento: '2025-09-15',
-      nfse: '1491',
-      status: 'PAGO',
-      valorDoacaoCalculado: 0,
-      observacoes: 'Pagamento integral de setembro',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      idosoId: 1,
-      mesReferencia: 10,
-      anoReferencia: 2025,
-      valorPago: 1500,
-      dataPagamento: '2025-10-10',
-      nfse: '1492',
-      status: 'PARCIAL',
-      valorDoacaoCalculado: 0,
-      observacoes: 'Pagamento parcial de outubro',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 3,
-      idosoId: 1,
-      mesReferencia: 11,
-      anoReferencia: 2025,
-      valorPago: 0,
-      dataPagamento: null,
-      nfse: null,
-      status: 'PENDENTE',
-      valorDoacaoCalculado: 0,
-      observacoes: 'Pagamento pendente',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
+  const defaultData: any[] = [];
   
   return getFromStorage('pagamentosMock', defaultData);
 };
@@ -210,6 +178,7 @@ export const mockElectronAPI = {
           nome: 'Responsável não encontrado',
           cpf: '000.000.000-00',
         },
+        tipo: data.tipo || 'REGULAR', // Garantir que tipo seja definido
         ativo: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -281,6 +250,7 @@ export const mockElectronAPI = {
         id: Date.now(), 
         ...data,
         idosos: [],
+        ativo: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -303,16 +273,17 @@ export const mockElectronAPI = {
       throw new Error('Responsável não encontrado');
     },
     delete: async (id: number) => {
-      console.log('🗑️ Mock API: Excluindo responsável ID:', id);
+      console.log('🗑️ Mock API: Desativando responsável ID:', id);
       await new Promise(resolve => setTimeout(resolve, 300));
       const responsaveisMock = getResponsaveisMock();
       const index = responsaveisMock.findIndex(r => r.id === id);
       if (index !== -1) {
-        const responsavelDeletado = responsaveisMock[index];
-        responsaveisMock.splice(index, 1);
+        // Marcar como inativo em vez de remover
+        responsaveisMock[index].ativo = false;
+        responsaveisMock[index].updatedAt = new Date().toISOString();
         saveResponsaveisMock(responsaveisMock);
-        console.log('✅ Mock API: Responsável excluído');
-        return responsavelDeletado; // Retornar o objeto deletado
+        console.log('✅ Mock API: Responsável desativado');
+        return responsaveisMock[index];
       }
       throw new Error('Responsável não encontrado');
     },
@@ -384,6 +355,7 @@ export const mockElectronAPI = {
       const idoso = idososMock.find(i => i.id === data.idosoId);
       const valorBase = idoso?.valorMensalidadeBase || 2500;
       const valorPago = data.valorPago || 0;
+      const tipoIdoso = idoso?.tipo || 'REGULAR';
       let status = 'PENDENTE';
       
       if (valorPago >= valorBase) {
@@ -392,7 +364,16 @@ export const mockElectronAPI = {
         status = 'PARCIAL';
       }
       
-      const valorDoacao = Math.max(0, valorPago - valorBase);
+      // Para idosos SOCIAL: não há doação (município paga o restante)
+      // Para idosos REGULAR: doação = valor pago - 70% do benefício
+      let valorDoacao = 0;
+      if (tipoIdoso === 'SOCIAL') {
+        valorDoacao = 0; // Idosos SOCIAL não geram doação
+      } else {
+        // Idosos REGULAR: doação = valor pago - 70% do benefício
+        const valorBeneficio = valorBase * 0.7;
+        valorDoacao = Math.max(0, valorPago - valorBeneficio);
+      }
       
       // Verificar se já existe pagamento para este idoso/mês/ano
       const pagamentoExistente = pagamentosMock.find(p => 
@@ -601,7 +582,7 @@ export const mockElectronAPI = {
     gerarMensalidade: async (data: any) => {
       console.log('📄 Mock API: Gerando template de mensalidade:', data);
       await new Promise(resolve => setTimeout(resolve, 2000));
-      const fileName = `NFSE_${data.numeroNFSE}_MENSALIDADE_${data.nomeIdoso.replace(/\s+/g, '_')}_${data.mesReferencia.replace('/', '_')}.html`;
+      const fileName = `${data.numeroNFSE}_MENSALIDADE_${data.nomeIdoso.replace(/\s+/g, '_')}_${data.mesReferencia.replace('/', '_')}.html`;
       
       // Simular download automático
       try {
@@ -611,10 +592,16 @@ export const mockElectronAPI = {
         const valorNumerico = parseFloat(data.valorPagamento.toString().replace(',', '.'));
         const valorPorExtenso = extenso(valorNumerico, { mode: 'currency' });
         
-        // Adicionar valor por extenso aos dados
+        // Buscar tipo do idoso
+        const idososMock = getIdososMock();
+        const idoso = idososMock.find(i => i.nome === data.nomeIdoso);
+        const tipoIdoso = idoso?.tipo || 'REGULAR';
+        
+        // Adicionar valor por extenso e tipo aos dados
         const dataComExtenso = {
           ...data,
-          valorPorExtenso: valorPorExtenso
+          valorPorExtenso: valorPorExtenso,
+          tipoIdoso: tipoIdoso
         };
         
         // Gerar HTML usando template

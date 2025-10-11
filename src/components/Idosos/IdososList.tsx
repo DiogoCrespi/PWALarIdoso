@@ -30,6 +30,7 @@ import {
   Person as PersonIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -61,7 +62,13 @@ export default function IdososList({ onRefresh }: IdososListProps) {
       setLoading(true);
       setError(null);
       const data = await window.electronAPI.idosos.list();
-      setIdosos(data);
+      // Ordenar: ativos primeiro, depois inativos
+      const sortedData = data.sort((a, b) => {
+        if (a.ativo && !b.ativo) return -1;
+        if (!a.ativo && b.ativo) return 1;
+        return 0;
+      });
+      setIdosos(sortedData);
     } catch (err: any) {
       console.error('Erro ao carregar idosos:', err);
       setError(err.message || 'Erro ao carregar idosos');
@@ -89,6 +96,17 @@ export default function IdososList({ onRefresh }: IdososListProps) {
     setIdosoToDelete(idoso);
     setDeleteDialogOpen(true);
     setAnchorEl(null);
+  };
+
+  const handleDeactivate = async (idoso: Idoso) => {
+    try {
+      await window.electronAPI.idosos.delete(idoso.id);
+      await loadIdosos();
+      setAnchorEl(null);
+    } catch (error) {
+      console.error('Erro ao desativar idoso:', error);
+      setError('Erro ao desativar idoso');
+    }
   };
 
   const confirmDelete = async () => {
@@ -271,11 +289,21 @@ export default function IdososList({ onRefresh }: IdososListProps) {
 
                   {/* Status */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Chip
-                      label={idoso.ativo ? 'Ativo' : 'Inativo'}
-                      color={idoso.ativo ? 'success' : 'default'}
-                      size="small"
-                    />
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <Chip
+                        label={idoso.ativo ? 'Ativo' : 'Inativo'}
+                        color={idoso.ativo ? 'success' : 'default'}
+                        size="small"
+                      />
+                      {idoso.tipo === 'SOCIAL' && (
+                        <Chip
+                          label="SOCIAL"
+                          color="warning"
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
                     <Typography variant="caption" color="text.secondary">
                       ID: {idoso.id}
                     </Typography>
@@ -299,6 +327,14 @@ export default function IdososList({ onRefresh }: IdososListProps) {
           </ListItemIcon>
           <ListItemText>Editar</ListItemText>
         </MenuItem>
+        {selectedIdoso?.ativo && (
+          <MenuItem onClick={() => handleDeactivate(selectedIdoso!)} sx={{ color: 'warning.main' }}>
+            <ListItemIcon>
+              <BlockIcon fontSize="small" color="warning" />
+            </ListItemIcon>
+            <ListItemText>Desativar</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem onClick={() => handleDelete(selectedIdoso!)} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" color="error" />

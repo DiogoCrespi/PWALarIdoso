@@ -8,7 +8,11 @@ interface DashboardGridProps {
   onCellClick: (idosoId: number, mes: number) => void;
 }
 
-const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const meses = [
+  'Jan - 01', 'Fev - 02', 'Mar - 03', 'Abr - 04', 
+  'Mai - 05', 'Jun - 06', 'Jul - 07', 'Ago - 08', 
+  'Set - 09', 'Out - 10', 'Nov - 11', 'Dez - 12'
+];
 
 export default function DashboardGrid({ idosos, pagamentos, onCellClick }: DashboardGridProps) {
   return (

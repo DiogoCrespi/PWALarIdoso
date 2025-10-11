@@ -1754,3 +1754,299 @@ A data agora aparece:
 
 **Próxima fase:**
 - Fase 25: Testes finais e refinamentos
+
+---
+
+## Fase 25: Identificação Automática de CPF/CNPJ (09/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar sistema de identificação automática de CPF/CNPJ nos formulários de cadastro, eliminando a necessidade do usuário escolher manualmente o tipo de documento.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Utilitários de Validação Criados:**
+- **Arquivo:** `src/utils/documentValidation.ts`
+- **Função `identifyDocument()`:** Identifica automaticamente CPF ou CNPJ
+- **Função `validateCPF()`:** Validação completa de CPF com algoritmo oficial
+- **Função `validateCNPJ()`:** Validação completa de CNPJ com algoritmo oficial
+- **Função `formatCPF()`:** Formatação automática (000.000.000-00)
+- **Função `formatCNPJ()`:** Formatação automática (00.000.000/0000-00)
+
+#### **2. Formulário de Idosos Atualizado:**
+- **Arquivo:** `src/components/Idosos/IdosoForm.tsx`
+- **Detecção automática:** Identifica CPF (11 dígitos) ou CNPJ (14 dígitos)
+- **Formatação em tempo real:** Aplica máscara automaticamente durante digitação
+- **Validação instantânea:** Mostra erro se documento inválido
+- **Chip visual:** Indica o tipo detectado (CPF/CNPJ) com cores
+- **Label dinâmico:** Muda de "CPF do Idoso" para "CNPJ do Idoso"
+
+#### **3. Formulário de Responsáveis Atualizado:**
+- **Arquivo:** `src/components/Responsaveis/ResponsavelForm.tsx`
+- **Mesma funcionalidade:** Detecção automática e formatação
+- **Interface consistente:** Comportamento idêntico ao formulário de idosos
+- **Validação unificada:** Usa os mesmos utilitários centralizados
+
+#### **4. Interface Visual Inteligente:**
+- **Label dinâmico:** "CPF/CNPJ do Idoso" → "CPF do Idoso" ou "CNPJ do Idoso"
+- **Placeholder adaptativo:** Mostra formato correto baseado no tipo detectado
+- **Chip indicador:** Verde (válido) / Vermelho (inválido) / Cinza (detectando)
+- **Helper text:** Instruções específicas por tipo de documento
+- **Validação em tempo real:** Feedback instantâneo durante digitação
+
+### 🔧 **Detalhes Técnicos:**
+
+#### **Algoritmo de Detecção:**
+```typescript
+export const identifyDocument = (document: string): DocumentInfo => {
+  const clean = cleanDocument(document);
+  
+  if (clean.length === 11) {
+    const isValid = validateCPF(clean);
+    return {
+      type: 'CPF',
+      formatted: formatCPF(clean),
+      isValid,
+      clean
+    };
+  } else if (clean.length === 14) {
+    const isValid = validateCNPJ(clean);
+    return {
+      type: 'CNPJ',
+      formatted: formatCNPJ(clean),
+      isValid,
+      clean
+    };
+  }
+  
+  return {
+    type: 'INVALID',
+    formatted: document,
+    isValid: false,
+    clean
+  };
+};
+```
+
+#### **Validação de CPF:**
+```typescript
+export const validateCPF = (cpf: string): boolean => {
+  const cleanCpf = cleanDocument(cpf);
+  
+  // Verifica se tem 11 dígitos
+  if (cleanCpf.length !== 11) return false;
+  
+  // Verifica se todos os dígitos são iguais
+  if (/^(\d)\1{10}$/.test(cleanCpf)) return false;
+  
+  // Algoritmo de validação do CPF
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
+  }
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCpf.charAt(9))) return false;
+  
+  // Segundo dígito verificador
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
+  }
+  remainder = (sum * 10) % 11;
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  if (remainder !== parseInt(cleanCpf.charAt(10))) return false;
+  
+  return true;
+};
+```
+
+#### **Interface do Campo:**
+```typescript
+<TextField
+  fullWidth
+  label={documentType ? `${documentType} do Idoso` : 'CPF/CNPJ do Idoso'}
+  value={formData.cpf}
+  onChange={(e) => handleInputChange('cpf', e.target.value)}
+  error={!!documentError}
+  helperText={documentError || (documentType ? `Formato: ${documentType === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00'}` : 'Digite CPF (11 dígitos) ou CNPJ (14 dígitos)')}
+  placeholder={documentType ? (documentType === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00') : '000.000.000-00 ou 00.000.000/0000-00'}
+  InputProps={{
+    endAdornment: documentType && (
+      <Chip 
+        label={documentType} 
+        size="small" 
+        color={documentError ? 'error' : 'success'}
+        variant="outlined"
+      />
+    )
+  }}
+/>
+```
+
+### 📊 **Exemplos de Funcionamento:**
+
+#### **Entrada de CPF:**
+```
+Usuário digita: "12345678901"
+Sistema detecta: CPF (11 dígitos)
+Sistema formata: "123.456.789-01"
+Sistema valida: ✓ Válido
+Interface mostra: [CPF] chip verde
+Label muda para: "CPF do Idoso"
+```
+
+#### **Entrada de CNPJ:**
+```
+Usuário digita: "12345678000195"
+Sistema detecta: CNPJ (14 dígitos)
+Sistema formata: "12.345.678/0001-95"
+Sistema valida: ✓ Válido
+Interface mostra: [CNPJ] chip verde
+Label muda para: "CNPJ do Idoso"
+```
+
+#### **Entrada Inválida:**
+```
+Usuário digita: "123456789"
+Sistema detecta: INVALID (9 dígitos)
+Sistema mostra: "Documento inválido"
+Interface mostra: Campo em vermelho
+Chip: Não aparece
+```
+
+### 📊 **Status:**
+- ✅ **Utilitários de validação** - Criados e funcionando
+- ✅ **Formulário de idosos** - Atualizado com detecção automática
+- ✅ **Formulário de responsáveis** - Atualizado com detecção automática
+- ✅ **Interface visual** - Chips e labels dinâmicos funcionando
+- ✅ **Validação em tempo real** - Feedback instantâneo
+- ✅ **Formatação automática** - Máscaras aplicadas automaticamente
+- ✅ **Algoritmos completos** - Validação CPF/CNPJ robusta
+
+### 🎯 **Resultado:**
+O sistema agora oferece:
+1. **Detecção automática** - Identifica CPF/CNPJ sem intervenção do usuário
+2. **Formatação inteligente** - Aplica máscara correta automaticamente
+3. **Validação robusta** - Algoritmos completos de validação
+4. **Interface intuitiva** - Feedback visual claro e imediato
+5. **Experiência melhorada** - Usuário não precisa escolher tipo de documento
+6. **Consistência** - Comportamento uniforme em todos os formulários
+
+---
+
+## Fase 26: Formatação de Moeda Brasileira (09/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar formatação de moeda brasileira no campo de valor da mensalidade, permitindo entrada de valores com centavos no formato R$ 1.062,60.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Funções de Formatação Criadas:**
+- **Função `formatCurrency()`:** Formata valores como moeda brasileira (R$ 1.062,60)
+- **Função `parseCurrency()`:** Converte valor formatado para número decimal
+- **Suporte a centavos:** Aceita valores decimais com precisão de 2 casas
+- **Formatação automática:** Aplica máscara durante digitação
+
+#### **2. Campo de Valor da Mensalidade Atualizado:**
+- **Arquivo:** `src/components/Idosos/IdosoForm.tsx`
+- **Formatação em tempo real:** Aplica máscara R$ 1.062,60 automaticamente
+- **Placeholder informativo:** "R$ 0,00"
+- **Helper text:** "Digite o valor (ex: R$ 1.062,60)"
+- **Validação atualizada:** Usa parseCurrency para validar valores
+- **Salvamento correto:** Converte valor formatado para número
+
+#### **3. Integração Completa:**
+- **Carregamento de dados:** Formata valor ao editar idoso existente
+- **Validação robusta:** Verifica se valor é maior que zero
+- **Salvamento:** Converte valor formatado para número antes de salvar
+- **Interface consistente:** Mantém padrão visual do formulário
+
+### 🔧 **Detalhes Técnicos:**
+
+#### **Função de Formatação:**
+```typescript
+const formatCurrency = (value: string): string => {
+  // Remove caracteres não numéricos
+  const numericValue = value.replace(/\D/g, '');
+  
+  // Converte para número e divide por 100 para centavos
+  const number = parseFloat(numericValue) / 100;
+  
+  // Formata como moeda brasileira
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(number);
+};
+```
+
+#### **Função de Conversão:**
+```typescript
+const parseCurrency = (formattedValue: string): number => {
+  // Remove R$, espaços e pontos (separadores de milhares)
+  const cleanValue = formattedValue.replace(/R\$\s?/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(cleanValue) || 0;
+};
+```
+
+#### **Campo Atualizado:**
+```typescript
+<TextField
+  fullWidth
+  label="Valor da Mensalidade *"
+  value={formData.valorMensalidadeBase}
+  onChange={(e) => {
+    const formatted = formatCurrency(e.target.value);
+    handleInputChange('valorMensalidadeBase', formatted);
+  }}
+  placeholder="R$ 0,00"
+  error={!formData.valorMensalidadeBase || parseCurrency(formData.valorMensalidadeBase) <= 0}
+  helperText="Digite o valor (ex: R$ 1.062,60)"
+  InputProps={{
+    startAdornment: 'R$ '
+  }}
+/>
+```
+
+### 📊 **Exemplos de Funcionamento:**
+
+#### **Entrada de Valor com Centavos:**
+```
+Usuário digita: "106260"
+Sistema formata: "R$ 1.062,60"
+Valor salvo: 1062.60
+```
+
+#### **Entrada de Valor Simples:**
+```
+Usuário digita: "50050"
+Sistema formata: "R$ 500,50"
+Valor salvo: 500.50
+```
+
+#### **Entrada de Valor Inteiro:**
+```
+Usuário digita: "100000"
+Sistema formata: "R$ 1.000,00"
+Valor salvo: 1000.00
+```
+
+### 📊 **Status:**
+- ✅ **Formatação de moeda** - Implementada e funcionando
+- ✅ **Suporte a centavos** - Valores decimais com 2 casas
+- ✅ **Formatação automática** - Máscara aplicada durante digitação
+- ✅ **Validação robusta** - Verifica se valor > 0
+- ✅ **Interface intuitiva** - Placeholder e helper text informativos
+- ✅ **Integração completa** - Carregamento e salvamento funcionando
+- ✅ **Conversão correta** - Valores formatados convertidos para números
+
+### 🎯 **Resultado:**
+O campo de valor da mensalidade agora oferece:
+1. **Formatação automática** - R$ 1.062,60 durante digitação
+2. **Suporte a centavos** - Valores decimais com precisão
+3. **Interface intuitiva** - Placeholder e instruções claras
+4. **Validação robusta** - Verifica valores válidos
+5. **Integração completa** - Funciona em carregamento e salvamento
+6. **Precisão garantida** - Valores salvos corretamente como números

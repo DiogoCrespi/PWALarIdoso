@@ -14,11 +14,8 @@ import {
   Divider,
   Grid,
   Paper,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   LinearProgress,
+  Snackbar,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -31,6 +28,8 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useDropzone } from 'react-dropzone';
+import { extractNFSEWithFallback } from '../../utils/geminiExtractor';
+import { isGeminiConfigured, getGeminiApiKey } from '../../config/gemini';
 import type { Idoso } from '../../electron.d';
 
 interface PaymentModalProps {
@@ -75,6 +74,9 @@ export default function PaymentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'error' | 'success' | 'warning' | 'info'>('error');
   
   // Estados para upload de NFSE
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -110,6 +112,16 @@ export default function PaymentModal({
     }));
   };
 
+  const showSnackbar = (message: string, severity: 'error' | 'success' | 'warning' | 'info' = 'error') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
+
   // Funções para upload de NFSE
   const onDrop = (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -134,54 +146,37 @@ export default function PaymentModal({
     setError(null);
 
     try {
-      // Simular processamento de arquivo
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('🔄 Processando arquivo:', file.name);
       
-      // Dados simulados extraídos (em produção, usar biblioteca de OCR/PDF parsing)
-      // Simular diferentes cenários baseados no idoso selecionado
-      let mockData;
+      // Verificar se Gemini está configurado
+      const geminiConfigured = isGeminiConfigured();
+      console.log('🤖 Gemini configurado:', geminiConfigured);
       
-      if (idoso?.nome === 'Ana Sangaleti Bonassa') {
-        // NFSE correta para Ana Sangaleti Bonassa
-        mockData = {
-          numeroNFSE: '1497',
-          dataPrestacao: '03/10/2025',
-          discriminacao: 'Valor referente a participação no custeio da entidade. Referente ao mês de junho de 2025. Conforme PIX Sicredi.',
-          valor: 2800.00,
-          nomePessoa: 'Ana Sangaleti Bonassa' // Nome correto do idoso
-        };
-      } else {
-        // NFSE de outro idoso (para testar validação)
-        mockData = {
-          numeroNFSE: '1497',
-          dataPrestacao: '03/10/2025',
-          discriminacao: 'Valor referente a participação no custeio da entidade. Referente ao mês de junho de 2025. Conforme PIX Sicredi.',
-          valor: 2800.00,
-          nomePessoa: 'IVONI LUCIA HANAUER' // Nome diferente para testar validação
-        };
-      }
+      // Extrair dados usando Gemini ou fallback
+      const extractedData = await extractNFSEWithFallback(
+        file, 
+        geminiConfigured ? getGeminiApiKey() : undefined
+      );
+      
+      console.log('✅ Dados extraídos:', extractedData);
 
-      // Validar se a NFSE é do idoso correto
-      if (idoso && mockData.nomePessoa !== idoso.nome && mockData.nomePessoa !== idoso.responsavel?.nome) {
-        setError(`⚠️ ATENÇÃO: Esta NFSE é de "${mockData.nomePessoa}", mas o idoso selecionado é "${idoso.nome}". Verifique se está correto.`);
-      } else if (idoso && (mockData.nomePessoa === idoso.nome || mockData.nomePessoa === idoso.responsavel?.nome)) {
-        // Limpar erro se a NFSE for do idoso correto
-        setError(null);
-      }
+      // Limpar qualquer erro anterior
+      setError(null);
 
-      setExtractedData(mockData);
+      setExtractedData(extractedData);
       
       // Preencher automaticamente os campos do formulário
       setFormData(prev => ({
         ...prev,
-        valorPago: mockData.valor.toString(),
-        nfse: mockData.numeroNFSE,
-        dataPagamento: new Date(mockData.dataPrestacao.split('/').reverse().join('-')),
-        observacoes: mockData.discriminacao
+        valorPago: extractedData.valor.toString(),
+        nfse: extractedData.numeroNFSE,
+        dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
+        observacoes: extractedData.discriminacao
       }));
       
     } catch (err) {
-      setError('Erro ao processar arquivo. Tente novamente.');
+      console.error('❌ Erro detalhado ao processar PDF:', err);
+      setError(`Erro ao processar arquivo: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
       setIsProcessingFile(false);
     }
@@ -189,11 +184,17 @@ export default function PaymentModal({
 
   const handleUseExtractedData = () => {
     if (extractedData && idoso) {
-      // Validar se o valor não excede 70% do salário do idoso
-      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
-      if (extractedData.valor > valorMaximo) {
-        setError(`Valor da NFSE (R$ ${extractedData.valor.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
-        return;
+      // Validar valor baseado no tipo do idoso
+      if (idoso.tipo === 'SOCIAL') {
+        // Idosos SOCIAL: valor pode ser qualquer valor (município paga o restante)
+        // Não há validação de limite
+      } else {
+        // Idosos REGULAR: validar se não excede 70% do salário
+        const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+        if (extractedData.valor > valorMaximo) {
+          setError(`Valor da NFSE (R$ ${extractedData.valor.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
+          return;
+        }
       }
       
       setFormData(prev => ({
@@ -216,18 +217,30 @@ export default function PaymentModal({
 
       // Validações
       if (!formData.valorPago || parseFloat(formData.valorPago) < 0) {
-        throw new Error('Valor deve ser maior ou igual a zero');
+        const errorMsg = 'Valor deve ser maior ou igual a zero';
+        showSnackbar(errorMsg, 'error');
+        throw new Error(errorMsg);
       }
 
       if (!idoso) {
-        throw new Error('Idoso não encontrado');
+        const errorMsg = 'Idoso não encontrado';
+        showSnackbar(errorMsg, 'error');
+        throw new Error(errorMsg);
       }
 
-      // Validar se o valor não excede 70% do salário do idoso
+      // Validar valor baseado no tipo do idoso
       const valorPago = parseFloat(formData.valorPago);
-      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
-      if (valorPago > valorMaximo) {
-        throw new Error(`Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
+      if (idoso.tipo === 'SOCIAL') {
+        // Idosos SOCIAL: valor pode ser qualquer valor (município paga o restante)
+        // Não há validação de limite
+      } else {
+        // Idosos REGULAR: validar se não excede 70% do salário
+        const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+        if (valorPago > valorMaximo) {
+          const errorMsg = `Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`;
+          showSnackbar(errorMsg, 'error');
+          throw new Error(errorMsg);
+        }
       }
 
       const dataToSave = {
@@ -243,11 +256,11 @@ export default function PaymentModal({
       await onSave(dataToSave);
       setSuccess(true);
       
-      // Fechar modal após 1 segundo
+      // Fechar modal após 3 segundos para dar tempo de ver o feedback
       setTimeout(() => {
         onClose();
         setSuccess(false);
-      }, 1500);
+      }, 3000);
 
     } catch (err: any) {
       setError(err.message || 'Erro ao salvar pagamento');
@@ -494,12 +507,21 @@ export default function PaymentModal({
                     variant="outlined"
                   />
                 )}
-                <Chip
-                  label={`Limite: R$ ${(valorBase * 0.7).toFixed(2)} (70%)`}
-                  color="warning"
-                  size="small"
-                  variant="outlined"
-                />
+                {idoso?.tipo === 'SOCIAL' ? (
+                  <Chip
+                    label="SOCIAL - Valor Fixo (Município paga restante)"
+                    color="secondary"
+                    size="small"
+                    variant="outlined"
+                  />
+                ) : idoso?.tipo === 'REGULAR' ? (
+                  <Chip
+                    label={`Limite: R$ ${(valorBase * 0.7).toFixed(2)} (70%)`}
+                    color="warning"
+                    size="small"
+                    variant="outlined"
+                  />
+                ) : null}
               </Box>
             </Grid>
 

@@ -17,6 +17,8 @@ import {
 } from '@mui/material';
 import { CloudUpload, Description, CheckCircle, Error } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
+import { extractNFSEWithFallback } from '../../utils/geminiExtractor';
+import { isGeminiConfigured, getGeminiApiKey } from '../../config/gemini';
 
 interface NFSEUploadProps {
   onNFSEProcessed: (data: NFSEData) => void;
@@ -38,6 +40,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
   const [error, setError] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<Partial<NFSEData>>({});
   const [mesReferencia, setMesReferencia] = useState('');
+  const [usingGemini, setUsingGemini] = useState<boolean | null>(null);
 
   // Gerar lista de meses para seleção
   const generateMonths = () => {
@@ -80,20 +83,24 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
     setError(null);
 
     try {
-      // Simular processamento de arquivo
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('🔄 Processando arquivo NFSE:', file.name);
       
-      // Dados simulados extraídos (em produção, usar biblioteca de OCR/PDF parsing)
-      const mockData = {
-        numeroNFSE: '1497',
-        dataPrestacao: '03/10/2025',
-        discriminacao: 'Valor referente a participação no custeio da entidade. Referente ao mês de junho de 2025. Conforme PIX Sicredi.',
-        valor: 2800.00,
-        nomePessoa: 'IVONI LUCIA HANAUER'
-      };
+      // Verificar se Gemini está configurado
+      const geminiConfigured = isGeminiConfigured();
+      console.log('🤖 Gemini configurado:', geminiConfigured);
+      setUsingGemini(geminiConfigured);
+      
+      // Extrair dados usando Gemini ou fallback
+      const extractedData = await extractNFSEWithFallback(
+        file, 
+        geminiConfigured ? getGeminiApiKey() : undefined
+      );
+      
+      console.log('✅ Dados extraídos da NFSE:', extractedData);
 
-      setExtractedData(mockData);
+      setExtractedData(extractedData);
     } catch (err) {
+      console.error('❌ Erro ao processar arquivo NFSE:', err);
       setError('Erro ao processar arquivo. Tente novamente.');
     } finally {
       setIsProcessing(false);
@@ -170,7 +177,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
 
       {uploadedFile && !isProcessing && (
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
             <Description sx={{ mr: 1, color: 'success.main' }} />
             <Typography variant="h6">
               Arquivo Processado
@@ -180,8 +187,15 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
               label="Sucesso" 
               color="success" 
               size="small" 
-              sx={{ ml: 2 }}
             />
+            {usingGemini !== null && (
+              <Chip 
+                label={usingGemini ? "🤖 Extraído com Gemini AI" : "⚠️ Dados simulados (fallback)"}
+                color={usingGemini ? "primary" : "warning"}
+                size="small"
+                variant="outlined"
+              />
+            )}
           </Box>
           
           <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -272,6 +286,8 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                 setUploadedFile(null);
                 setExtractedData({});
                 setMesReferencia('');
+                setUsingGemini(null);
+                setError(null);
               }}
             >
               Cancelar

@@ -8,6 +8,7 @@ export interface Idoso {
   responsavelId: number;
   responsavel?: Responsavel;
   valorMensalidadeBase: number;
+  tipo: 'REGULAR' | 'SOCIAL'; // REGULAR = 70% + doação, SOCIAL = valor fixo
   pagamentos?: Pagamento[];
   ativo: boolean;
   observacoes?: string;
@@ -22,6 +23,7 @@ export interface Responsavel {
   contatoTelefone?: string;
   contatoEmail?: string;
   idosos?: Idoso[];
+  ativo: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

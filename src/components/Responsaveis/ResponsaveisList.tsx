@@ -32,6 +32,7 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   Add as AddIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material';
 import ResponsavelForm from './ResponsavelForm';
 
@@ -46,6 +47,7 @@ interface Responsavel {
     nome: string;
     ativo: boolean;
   }>;
+  ativo: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,8 +75,24 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
       console.log('🔄 Carregando responsáveis...');
       setLoading(true);
       const data = await window.electronAPI.responsaveis.list();
-      console.log('✅ Responsáveis carregados:', data);
-      setResponsaveis(data);
+      // Ordenar: ativos primeiro, depois inativos
+      const sortedData = data.sort((a, b) => {
+        // Primeiro critério: responsável ativo vs inativo
+        if (a.ativo && !b.ativo) return -1;
+        if (!a.ativo && b.ativo) return 1;
+        
+        // Segundo critério: se ambos ativos, ordenar por idosos ativos
+        if (a.ativo && b.ativo) {
+          const aAtivo = countIdososAtivos(a.idosos) > 0;
+          const bAtivo = countIdososAtivos(b.idosos) > 0;
+          if (aAtivo && !bAtivo) return -1;
+          if (!aAtivo && bAtivo) return 1;
+        }
+        
+        return 0;
+      });
+      console.log('✅ Responsáveis carregados:', sortedData);
+      setResponsaveis(sortedData);
     } catch (error) {
       console.error('❌ Erro ao carregar responsáveis:', error);
     } finally {
@@ -161,6 +179,20 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
     setResponsavelToDelete(selectedResponsavel);
     setDeleteDialogOpen(true);
     handleMenuClose();
+  };
+
+  // Desativar responsável
+  const handleDeactivate = async () => {
+    if (!selectedResponsavel) return;
+    
+    try {
+      await window.electronAPI.responsaveis.delete(selectedResponsavel.id);
+      await loadResponsaveis();
+      handleMenuClose();
+    } catch (error) {
+      console.error('Erro ao desativar responsável:', error);
+      alert('Erro ao desativar responsável: ' + (error as Error).message);
+    }
   };
 
   // Confirmar exclusão
@@ -251,9 +283,16 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
                         <PersonIcon />
                       </Avatar>
                       <Box>
-                        <Typography variant="h6" component="h3" noWrap>
-                          {responsavel.nome}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <Typography variant="h6" component="h3" noWrap>
+                            {responsavel.nome}
+                          </Typography>
+                          <Chip
+                            label={responsavel.ativo ? 'Ativo' : 'Inativo'}
+                            color={responsavel.ativo ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </Box>
                         <Typography variant="body2" color="text.secondary">
                           CPF: {formatCPF(responsavel.cpf)}
                         </Typography>
@@ -329,6 +368,10 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
         <MenuItem onClick={handleEdit}>
           <EditIcon sx={{ mr: 1 }} />
           Editar
+        </MenuItem>
+        <MenuItem onClick={handleDeactivate} sx={{ color: 'warning.main' }}>
+          <BlockIcon sx={{ mr: 1 }} />
+          Desativar
         </MenuItem>
         <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
           <DeleteIcon sx={{ mr: 1 }} />

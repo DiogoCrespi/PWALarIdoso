@@ -171,7 +171,7 @@ export const getReciboMensalidadeHtml = (data: any): string => {
           </div>
           
           <div class="recibo-content">
-            &nbsp;&nbsp;&nbsp;&nbsp;Recebemos do(a) Sr.(a) <strong>${data.nomeResponsavel}</strong> CPF <strong>${data.cpfResponsavel}</strong>, a quantia de <strong>R$ ${data.valorPagamento.toFixed(2).replace('.', ',')}</strong> (${data.valorPorExtenso || 'valor por extenso'}). Correspondente a doações para nossas obras assistenciais.<br><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Recebemos do(a) Sr.(a) <strong>${data.nomeResponsavel}</strong> CPF <strong>${data.cpfResponsavel}</strong>, a quantia de <strong>R$ ${data.valorPagamento.toFixed(2).replace('.', ',')}</strong> (${data.valorPorExtenso || 'valor por extenso'}). ${data.tipoIdoso === 'SOCIAL' ? 'Correspondente à participação no custeio da entidade.' : 'Correspondente a doações para nossas obras assistenciais.'}<br><br>
             &nbsp;&nbsp;&nbsp;&nbsp;Referente ao mês de <strong>${data.mesReferencia}</strong>. Conforme ${data.formaPagamento}.<br><br>
             &nbsp;&nbsp;&nbsp;&nbsp;Para clareza firmo(amos) o presente.
           </div>

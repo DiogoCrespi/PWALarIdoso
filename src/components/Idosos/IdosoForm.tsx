@@ -25,6 +25,31 @@ import { ptBR } from 'date-fns/locale';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import type { Idoso, Responsavel } from '../../electron.d';
+import { identifyDocument, formatDocument } from '../../utils/documentValidation';
+
+// Função para formatação de moeda brasileira
+const formatCurrency = (value: string): string => {
+  // Remove caracteres não numéricos
+  const numericValue = value.replace(/\D/g, '');
+  
+  // Converte para número e divide por 100 para centavos
+  const number = parseFloat(numericValue) / 100;
+  
+  // Formata como moeda brasileira
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(number);
+};
+
+// Função para converter valor formatado para número
+const parseCurrency = (formattedValue: string): number => {
+  // Remove R$, espaços e pontos (separadores de milhares)
+  const cleanValue = formattedValue.replace(/R\$\s?/g, '').replace(/\./g, '').replace(',', '.');
+  return parseFloat(cleanValue) || 0;
+};
 
 interface IdosoFormProps {
   open: boolean;
@@ -40,12 +65,14 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
     dataNascimento: null as Date | null,
     responsavelId: '',
     valorMensalidadeBase: '',
+    tipo: 'REGULAR' as 'REGULAR' | 'SOCIAL',
     observacoes: '',
   });
   const [responsaveis, setResponsaveis] = useState<Responsavel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cpfError, setCpfError] = useState<string | null>(null);
+  const [documentError, setDocumentError] = useState<string | null>(null);
+  const [documentType, setDocumentType] = useState<'CPF' | 'CNPJ' | null>(null);
 
   // Resetar formulário quando modal abrir
   useEffect(() => {
@@ -57,7 +84,8 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
           cpf: idoso.cpf || '',
           dataNascimento: idoso.dataNascimento ? new Date(idoso.dataNascimento) : null,
           responsavelId: idoso.responsavelId.toString(),
-          valorMensalidadeBase: idoso.valorMensalidadeBase.toString(),
+          valorMensalidadeBase: formatCurrency(idoso.valorMensalidadeBase.toString()),
+          tipo: idoso.tipo || 'REGULAR',
           observacoes: idoso.observacoes || '',
         });
       } else {
@@ -67,11 +95,13 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
           dataNascimento: null,
           responsavelId: '',
           valorMensalidadeBase: '',
+          tipo: 'REGULAR',
           observacoes: '',
         });
       }
       setError(null);
-      setCpfError(null);
+      setDocumentError(null);
+      setDocumentType(null);
     }
   }, [open, idoso]);
 
@@ -84,43 +114,6 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
     }
   };
 
-  const validateCPF = (cpf: string): boolean => {
-    // Remove caracteres não numéricos
-    const cleanCpf = cpf.replace(/\D/g, '');
-    
-    // Verifica se tem 11 dígitos
-    if (cleanCpf.length !== 11) return false;
-    
-    // Verifica se todos os dígitos são iguais
-    if (/^(\d)\1{10}$/.test(cleanCpf)) return false;
-    
-    // Algoritmo de validação do CPF
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
-    }
-    let remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    if (remainder !== parseInt(cleanCpf.charAt(9))) return false;
-    
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
-    }
-    remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    if (remainder !== parseInt(cleanCpf.charAt(10))) return false;
-    
-    return true;
-  };
-
-  const formatCPF = (value: string): string => {
-    const cleanValue = value.replace(/\D/g, '');
-    if (cleanValue.length <= 11) {
-      return cleanValue.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    }
-    return value;
-  };
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -128,14 +121,26 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
       [field]: value,
     }));
 
-    // Validação de CPF em tempo real
+    // Validação automática de documento (CPF/CNPJ) em tempo real
     if (field === 'cpf' && value) {
-      const cleanCpf = value.replace(/\D/g, '');
-      if (cleanCpf.length === 11) {
-        const isValid = validateCPF(value);
-        setCpfError(isValid ? null : 'CPF inválido');
+      const docInfo = identifyDocument(value);
+      
+      if (docInfo.type === 'INVALID') {
+        setDocumentError('Documento inválido');
+        setDocumentType(null);
       } else {
-        setCpfError(null);
+        setDocumentType(docInfo.type);
+        
+        if (docInfo.isValid) {
+          setDocumentError(null);
+          // Atualizar o valor formatado automaticamente
+          setFormData(prev => ({
+            ...prev,
+            cpf: docInfo.formatted,
+          }));
+        } else {
+          setDocumentError(`${docInfo.type} inválido`);
+        }
       }
     }
   };
@@ -150,15 +155,15 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
         throw new Error('Nome é obrigatório');
       }
 
-      if (formData.cpf && !validateCPF(formData.cpf)) {
-        throw new Error('CPF inválido');
+      if (formData.cpf && documentError) {
+        throw new Error(documentError);
       }
 
       if (!formData.responsavelId) {
         throw new Error('Responsável é obrigatório');
       }
 
-      if (!formData.valorMensalidadeBase || parseFloat(formData.valorMensalidadeBase) <= 0) {
+      if (!formData.valorMensalidadeBase || parseCurrency(formData.valorMensalidadeBase) <= 0) {
         throw new Error('Valor da mensalidade deve ser maior que zero');
       }
 
@@ -167,7 +172,8 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
         cpf: formData.cpf || null,
         dataNascimento: formData.dataNascimento,
         responsavelId: parseInt(formData.responsavelId),
-        valorMensalidadeBase: parseFloat(formData.valorMensalidadeBase),
+        valorMensalidadeBase: parseCurrency(formData.valorMensalidadeBase),
+        tipo: formData.tipo,
         observacoes: formData.observacoes.trim() || null,
       };
 
@@ -244,12 +250,22 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="CPF"
+                label={documentType ? `${documentType} do Idoso` : 'CPF/CNPJ do Idoso'}
                 value={formData.cpf}
-                onChange={(e) => handleInputChange('cpf', formatCPF(e.target.value))}
-                error={!!cpfError}
-                helperText={cpfError || 'Formato: 000.000.000-00'}
-                placeholder="000.000.000-00"
+                onChange={(e) => handleInputChange('cpf', e.target.value)}
+                error={!!documentError}
+                helperText={documentError || (documentType ? `Formato: ${documentType === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00'}` : 'Digite CPF (11 dígitos) ou CNPJ (14 dígitos)')}
+                placeholder={documentType ? (documentType === 'CPF' ? '000.000.000-00' : '00.000.000/0000-00') : '000.000.000-00 ou 00.000.000/0000-00'}
+                InputProps={{
+                  endAdornment: documentType && (
+                    <Chip 
+                      label={documentType} 
+                      size="small" 
+                      color={documentError ? 'error' : 'success'}
+                      variant="outlined"
+                    />
+                  )
+                }}
               />
             </Grid>
 
@@ -269,14 +285,50 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Valor da Mensalidade (R$) *"
-                type="number"
+                label="Valor da Mensalidade *"
                 value={formData.valorMensalidadeBase}
-                onChange={(e) => handleInputChange('valorMensalidadeBase', e.target.value)}
-                inputProps={{ min: 0, step: 0.01 }}
-                error={!formData.valorMensalidadeBase || parseFloat(formData.valorMensalidadeBase) <= 0}
-                helperText="Valor base da mensalidade"
+                onChange={(e) => {
+                  const formatted = formatCurrency(e.target.value);
+                  handleInputChange('valorMensalidadeBase', formatted);
+                }}
+                placeholder="R$ 0,00"
+                error={!formData.valorMensalidadeBase || parseCurrency(formData.valorMensalidadeBase) <= 0}
+                helperText="Digite o valor (ex: R$ 1.062,60)"
               />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Tipo do Idoso *</InputLabel>
+                <Select
+                  value={formData.tipo}
+                  onChange={(e) => handleInputChange('tipo', e.target.value)}
+                  label="Tipo do Idoso *"
+                >
+                  <MenuItem value="REGULAR">
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <span>REGULAR</span>
+                      <Chip 
+                        label="70% + Doação" 
+                        size="small" 
+                        color="primary" 
+                        variant="outlined"
+                      />
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="SOCIAL">
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <span>SOCIAL</span>
+                      <Chip 
+                        label="Valor Fixo" 
+                        size="small" 
+                        color="secondary" 
+                        variant="outlined"
+                      />
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
             </Grid>
 
             <Divider sx={{ width: '100%', my: 2 }} />
