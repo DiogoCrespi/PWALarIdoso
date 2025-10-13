@@ -24,13 +24,87 @@ const saveToStorage = (key: string, data: any) => {
 
 // Arrays em memória para simular banco de dados (com persistência)
 const getNotasFiscaisMock = () => {
-  const defaultData: any[] = [];
+  const defaultData: any[] = [
+    {
+      id: 1,
+      numeroNFSE: '12345',
+      dataPrestacao: '2025-10-07T00:00:00.000Z', // Data da prestação (diferente da data de pagamento)
+      dataEmissao: '2025-10-05T00:00:00.000Z',   // Data de emissão
+      discriminacao: 'Valor referente participação no custeio da entidade. Referente ao mês de Outubro de 2025. Conforme PIX Banco do Brasil.',
+      valor: 2500.00,
+      nomePessoa: 'Ana Sangaleti Bonassa',
+      idosoId: 1,
+      mesReferencia: 10,
+      anoReferencia: 2025,
+      status: 'COMPLETA',
+      pagamentoId: 1,
+      arquivoOriginal: 'nfse_12345.pdf',
+      createdAt: '2025-10-15T00:00:00.000Z',
+      updatedAt: '2025-10-15T00:00:00.000Z'
+    },
+    {
+      id: 2,
+      numeroNFSE: '12346',
+      dataPrestacao: '2025-11-07T00:00:00.000Z', // Data da prestação (diferente da data de pagamento)
+      dataEmissao: '2025-11-05T00:00:00.000Z',   // Data de emissão
+      discriminacao: 'Valor referente participação no custeio da entidade. Referente ao mês de Novembro de 2025. Conforme PIX Banco do Brasil.',
+      valor: 2500.00,
+      nomePessoa: 'Ana Sangaleti Bonassa',
+      idosoId: 1,
+      mesReferencia: 11,
+      anoReferencia: 2025,
+      status: 'COMPLETA',
+      pagamentoId: 2,
+      arquivoOriginal: 'nfse_12346.pdf',
+      createdAt: '2025-11-15T00:00:00.000Z',
+      updatedAt: '2025-11-15T00:00:00.000Z'
+    }
+  ];
   
   return getFromStorage('notasFiscaisMock', defaultData);
 };
 
 const saveNotasFiscaisMock = (data: any[]) => {
   saveToStorage('notasFiscaisMock', data);
+};
+
+// Função para limpar todas as NFSEs (para teste)
+const clearNotasFiscaisMock = () => {
+  console.log('🗑️ Limpando todas as NFSEs...');
+  saveToStorage('notasFiscaisMock', []);
+  console.log('✅ Todas as NFSEs foram removidas');
+};
+
+// Função global para limpar dados (disponível no console)
+(window as any).clearAllMockData = () => {
+  console.log('🗑️ Limpando todos os dados mock...');
+  clearNotasFiscaisMock();
+  clearPagamentosMock();
+  console.log('✅ Todos os dados foram limpos');
+  console.log('🔄 Recarregue a página para ver os dados limpos');
+};
+
+// Função para converter data brasileira (DD/MM/AAAA) para Date
+const parseBrazilianDate = (dateString: string): Date => {
+  if (!dateString) return new Date();
+  
+  // Se já é uma string de data ISO, usar diretamente
+  if (dateString.includes('T') || dateString.includes('-')) {
+    return new Date(dateString);
+  }
+  
+  // Converter formato brasileiro DD/MM/AAAA para AAAA-MM-DD
+  const parts = dateString.split('/');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    console.log('🔄 Mock API: Convertendo data brasileira:', dateString, '→', isoDate);
+    return new Date(isoDate);
+  }
+  
+  // Fallback para new Date() se não conseguir converter
+  console.warn('⚠️ Mock API: Não foi possível converter a data:', dateString);
+  return new Date();
 };
 
 const getResponsaveisMock = () => {
@@ -93,7 +167,7 @@ const getIdososMock = () => {
   const data = getFromStorage('idososMock', defaultData);
   
   // Migrar dados existentes: garantir que todos os idosos tenham o campo 'tipo'
-  const migratedData = data.map(idoso => {
+  const migratedData = data.map((idoso: any) => {
     let tipo = idoso.tipo || 'REGULAR';
     
     // Identificar idosos que deveriam ser SOCIAL baseado no nome
@@ -131,7 +205,7 @@ const getIdososMock = () => {
   });
   
   // Salvar dados migrados se houve mudanças
-  const hasChanges = migratedData.some((idoso, index) => idoso.tipo !== data[index]?.tipo);
+  const hasChanges = migratedData.some((idoso: any, index: number) => idoso.tipo !== data[index]?.tipo);
   if (hasChanges) {
     console.log('💾 Salvando dados migrados...');
     saveIdososMock(migratedData);
@@ -145,7 +219,36 @@ const saveIdososMock = (data: any[]) => {
 };
 
 const getPagamentosMock = () => {
-  const defaultData: any[] = [];
+  const defaultData: any[] = [
+    {
+      id: 1,
+      idosoId: 1,
+      mesReferencia: 10,
+      anoReferencia: 2025,
+      valorPago: 2500.00,
+      dataPagamento: '2025-10-15T00:00:00.000Z',
+      nfse: '12345',
+      pagador: 'Ana Sangaleti Bonassa',
+      formaPagamento: 'PIX Banco do Brasil',
+      observacoes: 'Pagamento de mensalidade',
+      createdAt: '2025-10-15T00:00:00.000Z',
+      updatedAt: '2025-10-15T00:00:00.000Z'
+    },
+    {
+      id: 2,
+      idosoId: 1,
+      mesReferencia: 11,
+      anoReferencia: 2025,
+      valorPago: 2500.00,
+      dataPagamento: '2025-11-15T00:00:00.000Z',
+      nfse: '12346',
+      pagador: 'Ana Sangaleti Bonassa',
+      formaPagamento: 'PIX Banco do Brasil',
+      observacoes: 'Pagamento de mensalidade',
+      createdAt: '2025-11-15T00:00:00.000Z',
+      updatedAt: '2025-11-15T00:00:00.000Z'
+    }
+  ];
   
   return getFromStorage('pagamentosMock', defaultData);
 };
@@ -154,7 +257,23 @@ const savePagamentosMock = (data: any[]) => {
   saveToStorage('pagamentosMock', data);
 };
 
+// Função para limpar todos os pagamentos (para teste)
+const clearPagamentosMock = () => {
+  console.log('🗑️ Limpando todos os pagamentos...');
+  saveToStorage('pagamentosMock', []);
+  console.log('✅ Todos os pagamentos foram removidos');
+};
+
 export const mockElectronAPI = {
+
+  // Função para limpar todos os dados (para teste)
+  clearAllData: async () => {
+    console.log('🗑️ Limpando todos os dados mock...');
+    clearNotasFiscaisMock();
+    clearPagamentosMock();
+    console.log('✅ Todos os dados foram limpos');
+    return { success: true };
+  },
 
   // Idosos
   idosos: {
@@ -173,7 +292,7 @@ export const mockElectronAPI = {
       const responsaveisMock = getResponsaveisMock();
       
       // Buscar responsável para incluir dados completos
-      const responsavel = responsaveisMock.find(r => r.id === data.responsavelId);
+      const responsavel = responsaveisMock.find((r: any) => r.id === data.responsavelId);
       
       const novoIdoso = {
         id: Date.now(),
@@ -199,7 +318,7 @@ export const mockElectronAPI = {
       console.log('📝 Mock API: Atualizando idoso ID:', id, 'com dados:', data);
       await new Promise(resolve => setTimeout(resolve, 400));
       const idososMock = getIdososMock();
-      const index = idososMock.findIndex(i => i.id === id);
+      const index = idososMock.findIndex((i: any) => i.id === id);
       if (index !== -1) {
         idososMock[index] = { 
           ...idososMock[index], 
@@ -217,7 +336,7 @@ export const mockElectronAPI = {
       console.log('🗑️ Mock API: Excluindo idoso ID:', id);
       await new Promise(resolve => setTimeout(resolve, 300));
       const idososMock = getIdososMock();
-      const index = idososMock.findIndex(i => i.id === id);
+      const index = idososMock.findIndex((i: any) => i.id === id);
       if (index !== -1) {
         idososMock[index].ativo = false;
         idososMock[index].updatedAt = new Date().toISOString();
@@ -227,15 +346,80 @@ export const mockElectronAPI = {
       }
       throw new Error('Idoso não encontrado');
     },
+    activate: async (id: number) => {
+      console.log('✅ Mock API: Ativando idoso ID:', id);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const idososMock = getIdososMock();
+      const index = idososMock.findIndex((i: any) => i.id === id);
+      if (index !== -1) {
+        idososMock[index].ativo = true;
+        idososMock[index].updatedAt = new Date().toISOString();
+        saveIdososMock(idososMock);
+        console.log('✅ Mock API: Idoso ativado');
+        return idososMock[index];
+      }
+      throw new Error('Idoso não encontrado');
+    },
     getById: async (id: number) => {
       console.log('🔍 Mock API: Buscando idoso ID:', id);
       await new Promise(resolve => setTimeout(resolve, 200));
       const idososMock = getIdososMock();
-      const idoso = idososMock.find(i => i.id === id);
+      const idoso = idososMock.find((i: any) => i.id === id);
       if (!idoso) {
         throw new Error('Idoso não encontrado');
       }
       return idoso;
+    },
+
+    getByPagador: async (pagador: string) => {
+      console.log('🔍 Mock API: Buscando idosos por pagador:', pagador);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const pagamentosMock = getPagamentosMock();
+      const idososMock = getIdososMock();
+      
+      // Filtrar pagamentos que contêm o pagador
+      const pagamentosComPagador = pagamentosMock.filter((p: any) => 
+        p.pagador && p.pagador.toLowerCase().includes(pagador.toLowerCase())
+      );
+      
+      // Agrupar por idoso
+      const idososMap = new Map();
+      pagamentosComPagador.forEach((p: any) => {
+        if (!idososMap.has(p.idosoId)) {
+          const idoso = idososMock.find((i: any) => i.id === p.idosoId);
+          if (idoso) {
+            idososMap.set(p.idosoId, {
+              ...idoso,
+              ultimoPagamento: {
+                pagador: p.pagador,
+                formaPagamento: p.formaPagamento,
+                valorPago: p.valorPago,
+                dataPagamento: p.dataPagamento,
+                mesReferencia: p.mesReferencia,
+                anoReferencia: p.anoReferencia,
+              },
+            });
+          }
+        }
+      });
+      
+      const idosos = Array.from(idososMap.values());
+      console.log('✅ Mock API: Idosos encontrados por pagador:', idosos.length);
+      return idosos;
+    },
+
+    getByNome: async (nome: string) => {
+      console.log('🔍 Mock API: Buscando idosos por nome:', nome);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const idososMock = getIdososMock();
+      const idosos = idososMock.filter((i: any) => 
+        i.nome.toLowerCase().includes(nome.toLowerCase())
+      );
+      
+      console.log('✅ Mock API: Idosos encontrados por nome:', idosos.length);
+      return idosos;
     },
   },
 
@@ -245,8 +429,16 @@ export const mockElectronAPI = {
       console.log('📋 Mock API: Listando responsáveis...');
       await new Promise(resolve => setTimeout(resolve, 400));
       const responsaveisMock = getResponsaveisMock();
-      console.log('✅ Mock API: Responsáveis retornados:', responsaveisMock);
-      return responsaveisMock;
+      const idososMock = getIdososMock();
+      
+      // Associar idosos aos responsáveis
+      const responsaveisComIdosos = responsaveisMock.map((responsavel: any) => ({
+        ...responsavel,
+        idosos: idososMock.filter((idoso: any) => idoso.responsavelId === responsavel.id && idoso.ativo)
+      }));
+      
+      console.log('✅ Mock API: Responsáveis retornados:', responsaveisComIdosos);
+      return responsaveisComIdosos;
     },
     create: async (data: any) => {
       console.log('➕ Mock API: Criando responsável:', data);
@@ -269,7 +461,7 @@ export const mockElectronAPI = {
       console.log('📝 Mock API: Atualizando responsável ID:', id, 'com dados:', data);
       await new Promise(resolve => setTimeout(resolve, 400));
       const responsaveisMock = getResponsaveisMock();
-      const index = responsaveisMock.findIndex(r => r.id === id);
+      const index = responsaveisMock.findIndex((r: any) => r.id === id);
       if (index !== -1) {
         responsaveisMock[index] = { ...responsaveisMock[index], ...data, updatedAt: new Date().toISOString() };
         saveResponsaveisMock(responsaveisMock);
@@ -282,7 +474,7 @@ export const mockElectronAPI = {
       console.log('🗑️ Mock API: Desativando responsável ID:', id);
       await new Promise(resolve => setTimeout(resolve, 300));
       const responsaveisMock = getResponsaveisMock();
-      const index = responsaveisMock.findIndex(r => r.id === id);
+      const index = responsaveisMock.findIndex((r: any) => r.id === id);
       if (index !== -1) {
         // Marcar como inativo em vez de remover
         responsaveisMock[index].ativo = false;
@@ -293,10 +485,24 @@ export const mockElectronAPI = {
       }
       throw new Error('Responsável não encontrado');
     },
+    activate: async (id: number) => {
+      console.log('✅ Mock API: Ativando responsável ID:', id);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const responsaveisMock = getResponsaveisMock();
+      const index = responsaveisMock.findIndex((r: any) => r.id === id);
+      if (index !== -1) {
+        responsaveisMock[index].ativo = true;
+        responsaveisMock[index].updatedAt = new Date().toISOString();
+        saveResponsaveisMock(responsaveisMock);
+        console.log('✅ Mock API: Responsável ativado');
+        return responsaveisMock[index];
+      }
+      throw new Error('Responsável não encontrado');
+    },
     getById: async (id: number) => {
       await new Promise(resolve => setTimeout(resolve, 200));
       const responsaveisMock = getResponsaveisMock();
-      const responsavel = responsaveisMock.find(r => r.id === id);
+      const responsavel = responsaveisMock.find((r: any) => r.id === id);
       if (!responsavel) {
         throw new Error('Responsável não encontrado');
       }
@@ -314,7 +520,7 @@ export const mockElectronAPI = {
       const pagamentosMock = getPagamentosMock();
       
       // Usar idosos do array em memória
-      const idosos = idososMock.map(idoso => ({
+      const idosos = idososMock.map((idoso: any) => ({
         id: idoso.id,
         nome: idoso.nome,
         cpf: idoso.cpf,
@@ -327,10 +533,10 @@ export const mockElectronAPI = {
       const pagamentos: Record<number, Record<number, any>> = {};
       
       // Filtrar pagamentos pelo ano
-      const pagamentosAno = pagamentosMock.filter(p => p.anoReferencia === ano);
+      const pagamentosAno = pagamentosMock.filter((p: any) => p.anoReferencia === ano);
       
       // Organizar pagamentos por idoso e mês
-      pagamentosAno.forEach(pagamento => {
+      pagamentosAno.forEach((pagamento: any) => {
         if (!pagamentos[pagamento.idosoId]) {
           pagamentos[pagamento.idosoId] = {};
         }
@@ -352,13 +558,15 @@ export const mockElectronAPI = {
   pagamentos: {
     upsert: async (data: any) => {
       console.log('💰 Mock API: Upsert pagamento:', data);
+      console.log('📅 Mock API: mesReferencia recebido:', data.mesReferencia);
+      console.log('📅 Mock API: anoReferencia recebido:', data.anoReferencia);
       await new Promise(resolve => setTimeout(resolve, 400));
       
       const idososMock = getIdososMock();
       const pagamentosMock = getPagamentosMock();
       
       // Buscar idoso para calcular status
-      const idoso = idososMock.find(i => i.id === data.idosoId);
+      const idoso = idososMock.find((i: any) => i.id === data.idosoId);
       const valorBase = idoso?.valorMensalidadeBase || 2500;
       const valorPago = data.valorPago || 0;
       const tipoIdoso = idoso?.tipo || 'REGULAR';
@@ -385,7 +593,7 @@ export const mockElectronAPI = {
       }
       
       // Verificar se já existe pagamento para este idoso/mês/ano
-      const pagamentoExistente = pagamentosMock.find(p => 
+      const pagamentoExistente = pagamentosMock.find((p: any) => 
         p.idosoId === data.idosoId && 
         p.mesReferencia === data.mesReferencia && 
         p.anoReferencia === data.anoReferencia
@@ -395,6 +603,8 @@ export const mockElectronAPI = {
         // Atualizar pagamento existente
         pagamentoExistente.valorPago = valorPago;
         pagamentoExistente.dataPagamento = data.dataPagamento ? new Date(data.dataPagamento).toISOString().split('T')[0] : null;
+        pagamentoExistente.mesReferencia = data.mesReferencia; // ✅ Atualizar mês de referência
+        pagamentoExistente.anoReferencia = data.anoReferencia; // ✅ Atualizar ano de referência
         pagamentoExistente.nfse = data.nfse;
         pagamentoExistente.pagador = data.pagador;
         pagamentoExistente.formaPagamento = data.formaPagamento;
@@ -432,12 +642,87 @@ export const mockElectronAPI = {
       }
     },
     getByIdoso: async (idosoId: number, ano: number) => {
+      console.log('💰 Mock API: Buscando pagamentos do idoso ID:', idosoId, 'ano:', ano);
       await new Promise(resolve => setTimeout(resolve, 300));
-      return [];
+      
+      const pagamentosMock = getPagamentosMock();
+      
+      // Filtrar pagamentos do idoso para o ano especificado
+      const pagamentosIdoso = pagamentosMock.filter((p: any) => 
+        p.idosoId === idosoId && p.anoReferencia === ano
+      );
+      
+      console.log('✅ Mock API: Pagamentos do idoso encontrados:', pagamentosIdoso.length);
+      return pagamentosIdoso;
+    },
+
+    getPagadoresByIdoso: async (idosoId: number) => {
+      console.log('👥 Mock API: Buscando pagadores do idoso ID:', idosoId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const pagamentosMock = getPagamentosMock();
+      
+      // Filtrar pagamentos do idoso com pagador
+      const pagamentosComPagador = pagamentosMock.filter((p: any) => 
+        p.idosoId === idosoId && p.pagador
+      );
+      
+      // Extrair pagadores únicos
+      const pagadoresMap = new Map();
+      pagamentosComPagador.forEach((p: any) => {
+        if (p.pagador && !pagadoresMap.has(p.pagador)) {
+          pagadoresMap.set(p.pagador, {
+            nome: p.pagador,
+            formaPagamento: p.formaPagamento,
+            ultimoValor: p.valorPago,
+            ultimaData: p.dataPagamento,
+            ultimoMes: p.mesReferencia,
+            ultimoAno: p.anoReferencia,
+          });
+        }
+      });
+      
+      const pagadores = Array.from(pagadoresMap.values());
+      console.log('✅ Mock API: Pagadores encontrados:', pagadores.length);
+      return pagadores;
     },
     getById: async (id: number) => {
       await new Promise(resolve => setTimeout(resolve, 200));
       return { id, valorPago: 2500, status: 'PAGO' };
+    },
+    getAllWithIdosos: async () => {
+      console.log('🔍 Mock API: Buscando todos os pagamentos com idosos');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const pagamentos = getPagamentosMock();
+      const idosos = getIdososMock();
+      const responsaveis = getResponsaveisMock();
+      const notasFiscais = getNotasFiscaisMock();
+      
+      const pagamentosComIdosos = pagamentos.map((pagamento: any) => {
+        const idoso = idosos.find((i: any) => i.id === pagamento.idosoId);
+        const responsavel = idoso ? responsaveis.find((r: any) => r.id === idoso.responsavelId) : null;
+        
+        // Buscar Nota Fiscal correspondente para obter dataPrestacao
+        const notaFiscal = notasFiscais.find((nf: any) => nf.pagamentoId === pagamento.id);
+        
+        console.log('🔍 Mock API: Pagamento ID:', pagamento.id, 'mesReferencia:', pagamento.mesReferencia, 'anoReferencia:', pagamento.anoReferencia);
+        if (notaFiscal) {
+          console.log('📄 Mock API: Nota Fiscal encontrada - mesReferencia:', notaFiscal.mesReferencia, 'anoReferencia:', notaFiscal.anoReferencia);
+        }
+        
+        return {
+          ...pagamento,
+          dataPrestacao: notaFiscal?.dataPrestacao, // ✅ Incluir dataPrestacao da Nota Fiscal
+          idoso: idoso ? {
+            ...idoso,
+            responsavel: responsavel
+          } : null
+        };
+      });
+      
+      console.log('✅ Mock API: Pagamentos com idosos encontrados:', pagamentosComIdosos.length);
+      return pagamentosComIdosos;
     },
   },
 
@@ -539,56 +824,292 @@ export const mockElectronAPI = {
     },
   },
   notasFiscais: {
-    list: async () => {
-      console.log('📋 Mock API: Listando notas fiscais...');
+    list: async (filters?: { idosoId?: number; status?: string }) => {
+      console.log('📋 Mock API: Listando notas fiscais...', filters);
       await new Promise(resolve => setTimeout(resolve, 300));
       const notas = getNotasFiscaisMock();
-      console.log('✅ Mock API: Notas fiscais retornadas:', notas);
-      return notas;
+      
+      let filteredNotas = notas;
+      
+      if (filters?.idosoId) {
+        filteredNotas = filteredNotas.filter((n: any) => n.idosoId === filters.idosoId);
+      }
+      
+      if (filters?.status) {
+        filteredNotas = filteredNotas.filter((n: any) => n.status === filters.status);
+      }
+      
+      console.log('✅ Mock API: Notas fiscais retornadas:', filteredNotas.length);
+      return filteredNotas;
     },
     create: async (data: any) => {
       console.log('➕ Mock API: Criando nota fiscal:', data);
+      console.log('📅 Mock API: dataPrestacao recebida:', data.dataPrestacao);
+      console.log('📅 Mock API: dataEmissao recebida:', data.dataEmissao);
+      console.log('📅 Mock API: mesReferencia recebido:', data.mesReferencia);
+      console.log('📅 Mock API: anoReferencia recebido:', data.anoReferencia);
       await new Promise(resolve => setTimeout(resolve, 400));
+      
       const notas = getNotasFiscaisMock();
+      let idosos = getIdososMock();
+      let responsaveis = getResponsaveisMock();
+      
+      let idosoId = data.idosoId;
+        let idoso = idosos.find((i: any) => i.id === idosoId);
+      
+      // Se não tem idosoId, buscar ou criar idoso automaticamente
+      if (!idosoId && data.nomePessoa) {
+        // Primeiro, buscar idoso existente com nome EXATO (case-insensitive)
+        idoso = idosos.find((i: any) => 
+          i.nome.toLowerCase() === data.nomePessoa.toLowerCase()
+        );
+        
+        if (idoso) {
+          idosoId = idoso.id;
+          console.log('👤 Mock API: Idoso encontrado com nome exato:', idoso.nome);
+        } else {
+          // Se não encontrou com nome exato, buscar com contains (mais flexível)
+          idoso = idosos.find((i: any) => 
+            i.nome.toLowerCase().includes(data.nomePessoa.toLowerCase())
+          );
+          
+          if (idoso) {
+            idosoId = idoso.id;
+            console.log('👤 Mock API: Idoso similar encontrado:', idoso.nome);
+          } else {
+            // Criar novo idoso
+            let responsavelId = null;
+          
+          if (data.responsavelNome) {
+            // Buscar responsável existente
+            let responsavel = responsaveis.find((r: any) => 
+              r.nome.toLowerCase().includes(data.responsavelNome.toLowerCase())
+            );
+            
+            if (responsavel) {
+              responsavelId = responsavel.id;
+            } else {
+              // Criar novo responsável
+              const novoResponsavel = {
+                id: responsaveis.length + 1,
+                nome: data.responsavelNome,
+                cpf: data.responsavelCpf || '',
+                contatoTelefone: '',
+                contatoEmail: '',
+                endereco: '',
+                ativo: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              responsaveis.push(novoResponsavel);
+              saveResponsaveisMock(responsaveis);
+              responsavelId = novoResponsavel.id;
+            }
+          }
+          
+          // Criar novo idoso
+          const novoIdoso = {
+            id: idosos.length + 1,
+            nome: data.nomePessoa,
+            cpf: '',
+            dataNascimento: null,
+            responsavelId: responsavelId,
+            valorMensalidadeBase: 2500,
+            tipo: 'REGULAR',
+            observacoes: 'Idoso criado automaticamente via NFSE',
+            ativo: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+            idosos.push(novoIdoso);
+            saveIdososMock(idosos);
+            idosoId = novoIdoso.id;
+            idoso = novoIdoso;
+            console.log('👤 Mock API: Novo idoso criado:', novoIdoso.nome);
+          }
+        }
+      }
+      
+      const responsavel = idoso ? responsaveis.find((r: any) => r.id === idoso.responsavelId) : null;
+      
       const novaNota = {
-        id: Date.now().toString(),
+        id: Date.now(),
         ...data,
-        dataUpload: new Date().toISOString()
+        idosoId: idosoId,
+        // Converter datas brasileiras para Date objects
+        dataPrestacao: data.dataPrestacao ? parseBrazilianDate(data.dataPrestacao) : null,
+        dataEmissao: data.dataEmissao ? parseBrazilianDate(data.dataEmissao) : null,
+        idoso: idoso ? {
+          ...idoso,
+          responsavel: responsavel
+        } : null,
+        status: data.status || 'RASCUNHO',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
+      
       notas.push(novaNota);
       saveNotasFiscaisMock(notas);
       console.log('✅ Mock API: Nota fiscal criada:', novaNota);
       return novaNota;
     },
-    update: async (id: string, data: any) => {
+    update: async (id: number, data: any) => {
       console.log('📝 Mock API: Atualizando nota fiscal ID:', id, 'com dados:', data);
       await new Promise(resolve => setTimeout(resolve, 400));
+      
       const notas = getNotasFiscaisMock();
-      const index = notas.findIndex(nota => nota.id === id);
+      let idosos = getIdososMock();
+      let responsaveis = getResponsaveisMock();
+      
+      const index = notas.findIndex((nota: any) => nota.id === id);
       if (index !== -1) {
-        notas[index] = { ...notas[index], ...data };
+        let idosoId = data.idosoId || notas[index].idosoId;
+        let idoso = idosos.find((i: any) => i.id === idosoId);
+        
+        // Se não tem idosoId, buscar ou criar idoso automaticamente
+        if (!idosoId && data.nomePessoa) {
+          // Primeiro, buscar idoso existente com nome EXATO (case-insensitive)
+          idoso = idosos.find((i: any) => 
+            i.nome.toLowerCase() === data.nomePessoa.toLowerCase()
+          );
+          
+          if (idoso) {
+            idosoId = idoso.id;
+            console.log('👤 Mock API: Idoso encontrado com nome exato na atualização:', idoso.nome);
+          } else {
+            // Se não encontrou com nome exato, buscar com contains (mais flexível)
+            idoso = idosos.find((i: any) => 
+              i.nome.toLowerCase().includes(data.nomePessoa.toLowerCase())
+            );
+            
+            if (idoso) {
+              idosoId = idoso.id;
+              console.log('👤 Mock API: Idoso similar encontrado na atualização:', idoso.nome);
+            } else {
+            // Criar novo idoso
+            let responsavelId = null;
+            
+            if (data.responsavelNome) {
+              // Buscar responsável existente
+              let responsavel = responsaveis.find((r: any) => 
+                r.nome.toLowerCase().includes(data.responsavelNome.toLowerCase())
+              );
+              
+              if (responsavel) {
+                responsavelId = responsavel.id;
+              } else {
+                // Criar novo responsável
+                const novoResponsavel = {
+                  id: responsaveis.length + 1,
+                  nome: data.responsavelNome,
+                  cpf: data.responsavelCpf || '',
+                  contatoTelefone: '',
+                  contatoEmail: '',
+                  endereco: '',
+                  ativo: true,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                };
+                responsaveis.push(novoResponsavel);
+                saveResponsaveisMock(responsaveis);
+                responsavelId = novoResponsavel.id;
+              }
+            }
+            
+            // Criar novo idoso
+            const novoIdoso = {
+              id: idosos.length + 1,
+              nome: data.nomePessoa,
+              cpf: '',
+              dataNascimento: null,
+              responsavelId: responsavelId,
+              valorMensalidadeBase: 2500,
+              tipo: 'REGULAR',
+              observacoes: 'Idoso criado automaticamente via NFSE',
+              ativo: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            
+              idosos.push(novoIdoso);
+              saveIdososMock(idosos);
+              idosoId = novoIdoso.id;
+              idoso = novoIdoso;
+              console.log('👤 Mock API: Novo idoso criado na atualização:', novoIdoso.nome);
+            }
+          }
+        }
+        
+        const responsavel = idoso ? responsaveis.find((r: any) => r.id === idoso.responsavelId) : null;
+        
+        notas[index] = { 
+          ...notas[index], 
+          ...data,
+          idosoId: idosoId,
+          // Converter datas brasileiras para Date objects
+          dataPrestacao: data.dataPrestacao ? parseBrazilianDate(data.dataPrestacao) : notas[index].dataPrestacao,
+          dataEmissao: data.dataEmissao ? parseBrazilianDate(data.dataEmissao) : notas[index].dataEmissao,
+          idoso: idoso ? {
+            ...idoso,
+            responsavel: responsavel
+          } : notas[index].idoso,
+          updatedAt: new Date(),
+        };
+        
         saveNotasFiscaisMock(notas);
         console.log('✅ Mock API: Nota fiscal atualizada:', notas[index]);
         return notas[index];
       }
       throw new Error('Nota fiscal não encontrada');
     },
-    delete: async (id: string) => {
-      console.log('🗑️ Mock API: Excluindo nota fiscal ID:', id);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const notas = getNotasFiscaisMock();
-      const notasFiltradas = notas.filter(nota => nota.id !== id);
-      saveNotasFiscaisMock(notasFiltradas);
-      console.log('✅ Mock API: Nota fiscal excluída');
-      return true;
-    },
-    getById: async (id: string) => {
+      cancel: async (id: number) => {
+        console.log('🚫 Mock API: Cancelando nota fiscal ID:', id);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const notas = getNotasFiscaisMock();
+        const index = notas.findIndex((nota: any) => nota.id === id);
+        if (index !== -1) {
+          notas[index].status = 'CANCELADA';
+          notas[index].updatedAt = new Date();
+          saveNotasFiscaisMock(notas);
+          console.log('✅ Mock API: Nota fiscal cancelada');
+          return notas[index];
+        }
+        throw new Error('Nota fiscal não encontrada');
+      },
+
+      delete: async (id: number) => {
+        console.log('🗑️ Mock API: Excluindo nota fiscal ID:', id);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const notas = getNotasFiscaisMock();
+        const index = notas.findIndex((nota: any) => nota.id === id);
+        if (index !== -1) {
+          const notaRemovida = notas.splice(index, 1)[0];
+          saveNotasFiscaisMock(notas);
+          console.log('✅ Mock API: Nota fiscal excluída');
+          return notaRemovida;
+        }
+        throw new Error('Nota fiscal não encontrada');
+      },
+    getById: async (id: number) => {
       console.log('🔍 Mock API: Buscando nota fiscal ID:', id);
       await new Promise(resolve => setTimeout(resolve, 200));
       const notas = getNotasFiscaisMock();
-      const nota = notas.find(nota => nota.id === id);
+      const nota = notas.find((nota: any) => nota.id === id);
       console.log('✅ Mock API: Nota fiscal encontrada:', nota);
       return nota;
+    },
+    getByIdoso: async (idosoId: number) => {
+      console.log('🔍 Mock API: Buscando notas fiscais do idoso ID:', idosoId);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const notas = getNotasFiscaisMock();
+      return notas.filter((n: any) => n.idosoId === idosoId);
+    },
+    getByPagamento: async (pagamentoId: number) => {
+      console.log('🔍 Mock API: Buscando nota fiscal por pagamento ID:', pagamentoId);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const notas = getNotasFiscaisMock();
+      return notas.find((n: any) => n.pagamentoId === pagamentoId) || null;
     }
   },
   backup: {
@@ -630,23 +1151,23 @@ export const mockElectronAPI = {
         csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
         
         // Responsáveis
-        responsaveis.forEach(r => {
+        responsaveis.forEach((r: any) => {
           csvContent += `RESPONSAVEL,${r.id},"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,,,,${r.ativo ? 'ATIVO' : 'INATIVO'},,,,,,,,,,"${r.createdAt}","${r.updatedAt}"\n`;
         });
         
         // Idosos
-        idosos.forEach(i => {
+        idosos.forEach((i: any) => {
           csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavel?.id || ''},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
         });
         
         // Pagamentos
-        pagamentos.forEach(p => {
-          const idoso = idosos.find(i => i.id === p.idosoId);
+        pagamentos.forEach((p: any) => {
+          const idoso = idosos.find((i: any) => i.id === p.idosoId);
           csvContent += `PAGAMENTO,${p.id},"${idoso?.nome || ''}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento || ''}",${p.mesReferencia},${p.anoReferencia},"${p.valorDoacaoCalculado || 0}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
         });
         
         // Notas Fiscais
-        notasFiscais.forEach(n => {
+        notasFiscais.forEach((n: any) => {
           csvContent += `NOTA_FISCAL,${n.id},"${n.nomePessoa || ''}","","","","","","","","","","","","${n.valor || 0}","${n.numeroNFSE || ''}","","","${n.dataPrestacao || ''}",,,,,,"${n.discriminacao || ''}","${n.dataUpload}","${n.dataUpload}"\n`;
         });
         
@@ -690,7 +1211,7 @@ export const mockElectronAPI = {
         
         // Buscar tipo do idoso
         const idososMock = getIdososMock();
-        const idoso = idososMock.find(i => i.nome === data.nomeIdoso);
+        const idoso = idososMock.find((i: any) => i.nome === data.nomeIdoso);
         const tipoIdoso = idoso?.tipo || 'REGULAR';
         
         // Adicionar valor por extenso e tipo aos dados
@@ -788,18 +1309,18 @@ CPF: ${data.cpfResponsavel}
         // Enriquecer dados dos idosos com informações de pagamento
         const idososCompletos = data.idosos.map((idoso: any) => {
           // Buscar idoso completo no mock
-          const idosoCompleto = idososMock.find(i => i.id.toString() === idoso.id);
+          const idosoCompleto = idososMock.find((i: any) => i.id.toString() === idoso.id);
           
           // Buscar pagamentos do idoso para o mês/ano especificado
           const [mes, ano] = data.mesReferencia.split('/');
-          const pagamento = pagamentosMock.find(p => 
+          const pagamento = pagamentosMock.find((p: any) => 
             p.idosoId === parseInt(idoso.id) && 
             p.mesReferencia === parseInt(mes) && 
             p.anoReferencia === parseInt(ano)
           );
           
           // Buscar responsável completo
-          const responsavelCompleto = responsaveisMock.find(r => r.id === idosoCompleto?.responsavel?.id);
+          const responsavelCompleto = responsaveisMock.find((r: any) => r.id === idosoCompleto?.responsavel?.id);
           
           return {
             ...idoso,
@@ -909,15 +1430,7 @@ RESPONSAVEL: ${idoso.responsavel || 'N/A'}   CPF ${idoso.cpfResponsavel || 'N/A'
 };
 
 // Mock do window.electronAPI para desenvolvimento
-declare global {
-  interface Window {
-    electronAPI: typeof mockElectronAPI;
-    systemInfo: {
-      platform: string;
-      version: any;
-    };
-  }
-}
+// Removido declare global para evitar conflito de tipos com electron.d.ts
 
 // Inicializar mock no window
 if (typeof window !== 'undefined') {

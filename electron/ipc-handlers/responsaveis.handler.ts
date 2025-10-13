@@ -23,7 +23,7 @@ export function setupResponsaveisHandlers() {
   });
 
   // Buscar responsável por ID
-  ipcMain.handle('responsaveis:getById', async (event, id: number) => {
+  ipcMain.handle('responsaveis:getById', async (_, id: number) => {
     try {
       const responsavel = await prisma.responsavel.findUnique({
         where: { id },
@@ -41,7 +41,7 @@ export function setupResponsaveisHandlers() {
   });
 
   // Criar novo responsável
-  ipcMain.handle('responsaveis:create', async (event, data) => {
+  ipcMain.handle('responsaveis:create', async (_, data) => {
     try {
       const responsavel = await prisma.responsavel.create({
         data: {
@@ -59,7 +59,7 @@ export function setupResponsaveisHandlers() {
   });
 
   // Atualizar responsável
-  ipcMain.handle('responsaveis:update', async (event, id: number, data) => {
+  ipcMain.handle('responsaveis:update', async (_, id: number, data) => {
     try {
       const updateData: any = {};
       
@@ -80,7 +80,7 @@ export function setupResponsaveisHandlers() {
   });
 
   // Deletar responsável (apenas se não tiver idosos vinculados)
-  ipcMain.handle('responsaveis:delete', async (event, id: number) => {
+  ipcMain.handle('responsaveis:delete', async (_, id: number) => {
     try {
       // Verificar se tem idosos vinculados
       const responsavel = await prisma.responsavel.findUnique({
@@ -103,6 +103,24 @@ export function setupResponsaveisHandlers() {
       return { sucesso: true };
     } catch (error) {
       console.error('Erro ao deletar responsável:', error);
+      throw error;
+    }
+  });
+
+  // Ativar responsável (apenas retorna o responsável com idosos ativos)
+  ipcMain.handle('responsaveis:activate', async (_, id: number) => {
+    try {
+      const responsavel = await prisma.responsavel.findUnique({
+        where: { id },
+        include: {
+          idosos: {
+            where: { ativo: true },
+          },
+        },
+      });
+      return responsavel;
+    } catch (error) {
+      console.error('Erro ao buscar responsável:', error);
       throw error;
     }
   });

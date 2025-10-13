@@ -16,6 +16,7 @@ import {
   Paper,
   LinearProgress,
   Snackbar,
+  Autocomplete,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -73,7 +74,10 @@ export default function PaymentModal({
     nfse: '',
     pagador: '',
     formaPagamento: '',
-    observacoes: '',
+    dataEmissao: '',
+    discriminacao: '',
+    mesReferencia: mes,
+    anoReferencia: ano,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +90,59 @@ export default function PaymentModal({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [extractedData, setExtractedData] = useState<any>(null);
+  
+  // Estados para dados históricos e opções de seleção
+  const [historicoValores, setHistoricoValores] = useState<string[]>([]);
+  const [historicoFormasPagamento, setHistoricoFormasPagamento] = useState<string[]>([]);
+  const [historicoPagadores, setHistoricoPagadores] = useState<string[]>([]);
+  const [ultimaNFSE, setUltimaNFSE] = useState<any>(null);
+
+  // Função para carregar histórico de dados do idoso
+  const loadHistoricoIdoso = async () => {
+    if (!idoso) return;
+    
+    try {
+      console.log('📊 PaymentModal: Carregando histórico do idoso:', idoso.id);
+      
+      // Buscar histórico de pagadores específico do idoso
+      const pagadoresHistorico = await window.electronAPI.pagamentos.getPagadoresByIdoso(idoso.id);
+      console.log('👥 PaymentModal: Pagadores encontrados:', pagadoresHistorico);
+      
+      // Extrair dados do histórico
+      const valores = [...new Set(pagadoresHistorico.map(p => p.ultimoValor?.toString()).filter(Boolean))];
+      const formasPagamento = [...new Set(pagadoresHistorico.map(p => p.formaPagamento).filter(Boolean))];
+      const pagadores = pagadoresHistorico.map(p => p.nome);
+      
+      setHistoricoValores(valores);
+      setHistoricoFormasPagamento(formasPagamento);
+      setHistoricoPagadores(pagadores);
+      
+      // Buscar a última NFSE do idoso
+      const pagamentos = await window.electronAPI.pagamentos.getByIdoso(idoso.id, ano);
+      const ultimaNFSE = pagamentos
+        .filter(p => p.nfse)
+        .sort((a, b) => new Date(b.dataPagamento || 0).getTime() - new Date(a.dataPagamento || 0).getTime())[0];
+      
+      setUltimaNFSE(ultimaNFSE);
+      
+      // Se não há pagamento existente, preencher com dados da última NFSE
+      if (!pagamentoExistente && ultimaNFSE) {
+        console.log('🔄 PaymentModal: Preenchendo com dados da última NFSE:', ultimaNFSE);
+        setFormData(prev => ({
+          ...prev,
+          valorPago: ultimaNFSE.valorPago?.toString() || '',
+          nfse: ultimaNFSE.nfse || '',
+          pagador: ultimaNFSE.pagador || '',
+          formaPagamento: ultimaNFSE.formaPagamento || '',
+          discriminacao: ultimaNFSE.observacoes || '',
+          dataEmissao: '',
+        }));
+      }
+      
+    } catch (error) {
+      console.error('❌ PaymentModal: Erro ao carregar histórico:', error);
+    }
+  };
 
   // Resetar formulário quando modal abrir
   useEffect(() => {
@@ -104,12 +161,18 @@ export default function PaymentModal({
         nfse: pagamentoExistente?.nfse || '',
         pagador: pagamentoExistente?.pagador || '',
         formaPagamento: pagamentoExistente?.formaPagamento || '',
-        observacoes: pagamentoExistente?.observacoes || '',
+        dataEmissao: '',
+        discriminacao: pagamentoExistente?.observacoes || '',
+        mesReferencia: mes,
+        anoReferencia: ano,
       });
       setError(null);
       setSuccess(false);
+      
+      // Carregar histórico do idoso
+      loadHistoricoIdoso();
     }
-  }, [open, pagamentoExistente, idoso]);
+  }, [open, pagamentoExistente, idoso, ano]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -232,9 +295,39 @@ export default function PaymentModal({
         ...prev,
         valorPago: extractedData.valor.toString(),
         nfse: extractedData.numeroNFSE,
+        pagador: extractedData.nomePessoa || '',
+        formaPagamento: extractedData.formaPagamento || '',
         dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
-        observacoes: extractedData.discriminacao
+        dataEmissao: extractedData.dataEmissao || '',
+        discriminacao: extractedData.discriminacao || '',
       }));
+      
+      // Log dos dados extraídos para debug
+      console.log('🤖 PaymentModal: Dados extraídos pela IA:', {
+        dataEmissao: extractedData.dataEmissao,
+        formaPagamento: extractedData.formaPagamento,
+        mesReferencia: extractedData.mesReferencia
+      });
+      
+      // Salvar dados extraídos no banco para reutilização futura
+      if (idoso) {
+        try {
+          await window.electronAPI.pagamentos.upsert({
+            idosoId: idoso.id,
+            mesReferencia: mes,
+            anoReferencia: ano,
+            valorPago: normalizeValue(extractedData.valor.toString()),
+            dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
+            nfse: extractedData.numeroNFSE,
+            pagador: extractedData.nomePessoa || '',
+            formaPagamento: extractedData.formaPagamento || '',
+            observacoes: extractedData.discriminacao,
+          });
+          console.log('💾 PaymentModal: Dados extraídos salvos no banco para reutilização');
+        } catch (error) {
+          console.error('❌ PaymentModal: Erro ao salvar dados extraídos:', error);
+        }
+      }
       
     } catch (err) {
       console.error('❌ Erro detalhado ao processar PDF:', err);
@@ -263,7 +356,8 @@ export default function PaymentModal({
         pagador: extractedData.nomePessoa || '',
         formaPagamento: extractedData.formaPagamento || '',
         dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
-        observacoes: extractedData.discriminacao
+        dataEmissao: extractedData.dataEmissao || '',
+        discriminacao: extractedData.discriminacao || '',
       }));
       
       setExtractedData(null);
@@ -311,7 +405,9 @@ export default function PaymentModal({
         nfse: formData.nfse || null,
         pagador: formData.pagador || null,
         formaPagamento: formData.formaPagamento || null,
-        observacoes: formData.observacoes || null,
+        observacoes: formData.discriminacao || null, // Usar discriminacao como observacoes
+        dataEmissao: formData.dataEmissao || null,
+        discriminacao: formData.discriminacao || null,
       };
 
       await onSave(dataToSave);
@@ -477,6 +573,11 @@ export default function PaymentModal({
                         <strong>Forma pagamento:</strong> {formData.formaPagamento}
                       </Typography>
                     )}
+                    {formData.discriminacao && (
+                      <Typography variant="body2">
+                        <strong>Discriminação:</strong> {formData.discriminacao}
+                      </Typography>
+                    )}
                   </Box>
                 )}
 
@@ -616,6 +717,34 @@ export default function PaymentModal({
               </Grid>
             )}
 
+            {/* Dados da Última NFSE */}
+            {ultimaNFSE && !pagamentoExistente && (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2, backgroundColor: 'info.50', border: '1px solid', borderColor: 'info.200' }}>
+                  <Typography variant="subtitle2" gutterBottom color="info.main">
+                    📋 Dados da Última NFSE (Referência)
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Typography variant="body2">
+                      <strong>Valor:</strong> R$ {ultimaNFSE.valorPago?.toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Forma:</strong> {ultimaNFSE.formaPagamento}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Pagador:</strong> {ultimaNFSE.pagador}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>NFSE:</strong> {ultimaNFSE.nfse}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Os campos abaixo foram preenchidos automaticamente com estes dados. Você pode editar conforme necessário.
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
+
             {/* Status Atual */}
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -646,15 +775,23 @@ export default function PaymentModal({
 
             {/* Campos do Formulário */}
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Valor Pago (R$)"
-                type="text"
+              <Autocomplete
+                freeSolo
+                options={historicoValores}
                 value={formData.valorPago}
-                onChange={(e) => handleInputChange('valorPago', e.target.value)}
-                onBlur={handleValueBlur}
-                placeholder="Ex: 1062.60 ou 1062,60"
-                helperText={`Mensalidade base: R$ ${valorBase.toFixed(2)} - Aceita ponto ou vírgula como centavos`}
+                onInputChange={(event, newValue) => {
+                  handleInputChange('valorPago', newValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Valor Pago (R$)"
+                    placeholder="Ex: 1062.60 ou 1062,60"
+                    helperText={`Mensalidade base: R$ ${valorBase.toFixed(2)} - Aceita ponto ou vírgula como centavos`}
+                    onBlur={handleValueBlur}
+                  />
+                )}
               />
             </Grid>
 
@@ -682,36 +819,69 @@ export default function PaymentModal({
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Pagador"
-                value={formData.pagador}
-                onChange={(e) => handleInputChange('pagador', e.target.value)}
-                placeholder="Nome de quem está pagando"
-                helperText="Nome da pessoa/empresa que está efetuando o pagamento"
+              <DatePicker
+                label="Data de Emissão da NFSE"
+                value={formData.dataEmissao ? new Date(formData.dataEmissao) : null}
+                onChange={(date) => handleInputChange('dataEmissao', date ? date.toISOString().split('T')[0] : '')}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    placeholder: "Data de emissão da NFSE"
+                  },
+                }}
               />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Forma de Pagamento"
+              <Autocomplete
+                freeSolo
+                options={historicoPagadores}
+                value={formData.pagador}
+                onInputChange={(event, newValue) => {
+                  handleInputChange('pagador', newValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Pagador"
+                    placeholder="Nome de quem está pagando"
+                    helperText="Nome da pessoa/empresa que está efetuando o pagamento"
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Autocomplete
+                freeSolo
+                options={historicoFormasPagamento}
                 value={formData.formaPagamento}
-                onChange={(e) => handleInputChange('formaPagamento', e.target.value)}
-                placeholder="Ex: PIX, DINHEIRO, PIX BB, PIX SICREDI"
-                helperText="Forma como o pagamento foi efetuado"
+                onInputChange={(event, newValue) => {
+                  handleInputChange('formaPagamento', newValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Forma de Pagamento"
+                    placeholder="Ex: PIX, DINHEIRO, PIX BB, PIX SICREDI"
+                    helperText="Forma como o pagamento foi efetuado"
+                  />
+                )}
               />
             </Grid>
 
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Observações"
+                label="Discriminação do Serviço"
                 multiline
                 rows={3}
-                value={formData.observacoes}
-                onChange={(e) => handleInputChange('observacoes', e.target.value)}
-                placeholder="Observações adicionais sobre o pagamento..."
+                value={formData.discriminacao}
+                onChange={(e) => handleInputChange('discriminacao', e.target.value)}
+                placeholder="Descrição detalhada do serviço prestado..."
+                helperText="Descrição do serviço conforme a NFSE"
               />
             </Grid>
           </Grid>

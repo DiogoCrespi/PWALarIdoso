@@ -2050,3 +2050,738 @@ O campo de valor da mensalidade agora oferece:
 4. **Validação robusta** - Verifica valores válidos
 5. **Integração completa** - Funciona em carregamento e salvamento
 6. **Precisão garantida** - Valores salvos corretamente como números
+
+---
+
+## Fase 29: Sistema de Histórico de Pagadores por Idoso (09/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar sistema robusto de histórico de pagadores onde cada idoso pode ter diferentes pessoas efetuando pagamentos, com busca de idosos por pagador na tela "Gerenciar Idosos".
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Estrutura do Banco de Dados Atualizada:**
+- ✅ **Campo `pagador`** - Adicionado na tabela `pagamentos` para armazenar nome da pessoa/empresa
+- ✅ **Campo `formaPagamento`** - Adicionado para armazenar forma de pagamento (PIX, DINHEIRO, etc.)
+- ✅ **Migration criada** - `20251011204153_add_pagador_forma_pagamento`
+- ✅ **Schema Prisma atualizado** - Novos campos com tipos corretos
+
+#### **2. Handlers do Electron Atualizados:**
+- ✅ **`pagamentos.handler.ts`** - Atualizado para incluir campos `pagador` e `formaPagamento`
+- ✅ **`getPagadoresByIdoso`** - Novo handler para buscar histórico de pagadores por idoso
+- ✅ **`getByPagador`** - Novo handler para buscar idosos por pagador
+- ✅ **Busca inteligente** - Filtro case-insensitive com informações do último pagamento
+
+#### **3. Interface TypeScript Atualizada:**
+- ✅ **`src/electron.d.ts`** - Adicionados novos métodos nas interfaces
+- ✅ **Tipagem completa** - Garantia de segurança de tipo para todas as operações
+- ✅ **Interfaces estendidas** - Suporte a informações de último pagamento
+
+#### **4. Mock API Atualizada:**
+- ✅ **`src/services/mock-api.ts`** - Implementados métodos `getPagadoresByIdoso` e `getByPagador`
+- ✅ **Simulação realista** - Dados de pagamento com informações completas
+- ✅ **Busca funcional** - Filtros e agrupamentos simulados corretamente
+
+#### **5. PaymentModal Inteligente:**
+- ✅ **Histórico específico por idoso** - Carrega apenas pagadores do idoso selecionado
+- ✅ **Campos Autocomplete** - Lista de pagadores históricos + digitação manual
+- ✅ **Preenchimento automático** - Baseado na última NFSE do idoso
+- ✅ **Salvamento de dados** - Novos pagadores salvos para reutilização futura
+
+#### **6. Tela Gerenciar Idosos Aprimorada:**
+- ✅ **Campo de busca por pagador** - Novo campo dedicado para buscar por quem efetuou pagamentos
+- ✅ **Busca em tempo real** - Filtro instantâneo conforme digitação
+- ✅ **Informações do último pagamento** - Cards mostram dados do último pagamento quando busca por pagador
+- ✅ **Interface intuitiva** - Dois campos de busca lado a lado com helper text
+
+#### **7. Funcionalidades Avançadas:**
+- ✅ **Histórico isolado por idoso** - Cada idoso tem seu próprio histórico de pagadores
+- ✅ **Busca cross-reference** - Encontrar idosos através de quem efetuou pagamentos
+- ✅ **Dados contextuais** - Informações completas do último pagamento em cada busca
+- ✅ **Performance otimizada** - Queries eficientes com agrupamento e ordenação
+
+### 🔧 **Tecnologias Utilizadas:**
+- **Prisma ORM** - Migration e schema atualizados
+- **SQLite** - Novos campos na tabela pagamentos
+- **TypeScript** - Tipagem completa e segura
+- **Material-UI** - Interface responsiva e intuitiva
+- **Electron IPC** - Comunicação eficiente entre processos
+
+### 📊 **Resultado Final:**
+Sistema completo de gerenciamento de pagadores onde:
+- Cada idoso mantém seu histórico único de pagadores
+- É possível buscar idosos por quem efetuou pagamentos
+- Campos inteligentes preenchem automaticamente baseado no histórico
+- Interface clara mostra informações contextuais do último pagamento
+- Dados são salvos e reutilizados para eficiência futura
+
+---
+
+## Fase 30: Sistema de Criação Automática de Notas Fiscais e Filtros Avançados (09/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar criação automática de notas fiscais a cada "Novo Pagamento" e sistema de filtros avançados na tela "Gerenciar Notas Fiscais" com ordenação numérica e por data.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Estrutura do Banco de Dados para Notas Fiscais:**
+- ✅ **Tabela `notas_fiscais`** - Criada com campos completos para gerenciamento
+- ✅ **Relacionamentos** - Conectada com `idosos` e `pagamentos`
+- ✅ **Status de controle** - RASCUNHO, COMPLETA, PROCESSADA
+- ✅ **Migration aplicada** - `20251011204958_add_notas_fiscais_table`
+
+#### **2. Handler de Notas Fiscais:**
+- ✅ **`notas-fiscais.handler.ts`** - Handler completo para CRUD de notas fiscais
+- ✅ **Métodos implementados** - list, create, update, delete, getById, getByIdoso, getByPagamento
+- ✅ **Filtros avançados** - Por idoso e status
+- ✅ **Relacionamentos incluídos** - Dados completos de idoso e pagamento
+
+#### **3. Criação Automática de Notas Fiscais:**
+- ✅ **Integração com pagamentos** - Nota fiscal criada automaticamente a cada pagamento
+- ✅ **Status inicial RASCUNHO** - Permite atualização posterior via upload
+- ✅ **Dados básicos preenchidos** - Valor, pagador, mês/ano, discriminação
+- ✅ **Prevenção de duplicatas** - Verifica se já existe nota para o pagamento
+
+#### **4. Atualização via Upload:**
+- ✅ **Busca por pagamento** - Encontra nota fiscal rascunho para atualizar
+- ✅ **Atualização inteligente** - Preenche dados faltantes com informações do upload
+- ✅ **Mudança de status** - RASCUNHO → COMPLETA após upload
+- ✅ **Preservação de dados** - Mantém informações já preenchidas
+
+#### **5. Interface de Filtros Avançados:**
+- ✅ **Filtro por data** - Hoje, última semana, último mês, todas
+- ✅ **Ordenação numérica** - ID (maior/menor) com setas visuais
+- ✅ **Ordenação por valor** - Maior/menor valor com indicadores
+- ✅ **Ordenação por data** - Data de pagamento e data de criação
+- ✅ **Interface intuitiva** - Botões com setas para cima/baixo
+
+#### **6. Tela Gerenciar Notas Fiscais Aprimorada:**
+- ✅ **Status visual** - Chips coloridos para RASCUNHO, COMPLETA, PROCESSADA
+- ✅ **Contador dinâmico** - Mostra quantidade de notas filtradas
+- ✅ **Mensagens contextuais** - Diferentes mensagens para lista vazia vs filtros
+- ✅ **Dados flexíveis** - Suporte a campos opcionais com fallbacks
+
+#### **7. Funcionalidades Avançadas:**
+- ✅ **Ordenação bidirecional** - Clique alterna entre crescente/decrescente
+- ✅ **Filtros combinados** - Data + ordenação funcionam juntos
+- ✅ **Performance otimizada** - Filtros aplicados em memória
+- ✅ **Interface responsiva** - Botões se adaptam ao tamanho da tela
+
+### 🔧 **Tecnologias Utilizadas:**
+- **Prisma ORM** - Nova tabela com relacionamentos
+- **SQLite** - Estrutura de dados robusta
+- **Material-UI** - Interface de filtros intuitiva
+- **TypeScript** - Tipagem completa e segura
+- **React Hooks** - Estados para filtros e ordenação
+
+### 📊 **Resultado Final:**
+Sistema completo de gerenciamento de notas fiscais onde:
+- Notas são criadas automaticamente a cada pagamento
+- Upload de NFSE atualiza notas rascunho existentes
+- Filtros avançados permitem ordenação por ID, valor e data
+- Interface clara mostra status e permite edição
+- Sistema previne duplicatas e mantém histórico completo
+
+---
+
+## Fase 28: Sistema de Campos Inteligentes para Novo Pagamento (09/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar sistema de campos inteligentes no Dashboard "Novo Pagamento" com lista de seleção + digitação manual, preenchimento automático baseado na última NFSE e salvamento de dados para reutilização.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Campos Inteligentes com Autocomplete:**
+- ✅ **Campo Valor Pago** - Lista de valores históricos + digitação manual
+- ✅ **Campo Forma de Pagamento** - Lista de formas históricas + digitação manual  
+- ✅ **Campo Pagador** - Lista de pagadores históricos + digitação manual
+- ✅ **Interface Autocomplete** - Material-UI com `freeSolo` para flexibilidade total
+
+#### **2. Sistema de Preenchimento Automático:**
+- ✅ **Carregamento de Histórico** - Busca pagamentos do idoso para o ano atual
+- ✅ **Última NFSE** - Identifica e exibe dados da última nota fiscal processada
+- ✅ **Preenchimento Inteligente** - Campos preenchidos automaticamente com dados da última NFSE
+- ✅ **Seção de Referência** - Mostra dados da última NFSE para consulta rápida
+
+#### **3. Salvamento e Reutilização de Dados:**
+- ✅ **Salvamento Automático** - Dados extraídos de NFSE são salvos no banco
+- ✅ **Listas Dinâmicas** - Opções de seleção atualizadas com dados históricos
+- ✅ **Persistência** - Dados mantidos entre sessões para reutilização
+- ✅ **Atualização em Tempo Real** - Listas atualizadas após cada pagamento
+
+#### **4. Botão "Novo Pagamento" no Dashboard:**
+- ✅ **Botão Principal** - Adicionado no cabeçalho do dashboard
+- ✅ **Modal de Seleção** - Interface para escolher idoso e mês
+- ✅ **Seleção de Mês** - Dropdown com todos os meses do ano
+- ✅ **Cards de Idosos** - Interface visual para seleção do idoso
+- ✅ **Integração Completa** - Abre PaymentModal com dados selecionados
+
+#### **5. Melhorias na Interface:**
+- ✅ **Seção de Referência** - Mostra dados da última NFSE em destaque
+- ✅ **Feedback Visual** - Chips e indicadores para melhor UX
+- ✅ **Layout Responsivo** - Interface adaptável para diferentes telas
+- ✅ **Validações Inteligentes** - Mantém validações existentes
+
+### 🔧 **Arquivos Modificados:**
+- ✅ `src/components/Dashboard/PaymentModal.tsx` - Campos inteligentes e preenchimento automático
+- ✅ `src/pages/DashboardPage.tsx` - Botão "Novo Pagamento" e modal de seleção
+- ✅ `src/services/mock-api.ts` - Método `getByIdoso` para buscar histórico
+
+### 🎨 **Funcionalidades Implementadas:**
+- ✅ **Campos com Autocomplete** - Lista de seleção + digitação manual
+- ✅ **Preenchimento Automático** - Baseado na última NFSE do idoso
+- ✅ **Salvamento Inteligente** - Dados extraídos são salvos para reutilização
+- ✅ **Botão Novo Pagamento** - Acesso direto no dashboard
+- ✅ **Interface Intuitiva** - Seleção visual de idoso e mês
+- ✅ **Dados Históricos** - Reutilização de valores, formas de pagamento e pagadores
+
+### 🧪 **Como Testar:**
+1. **Acesse o Dashboard** - Clique em "Novo Pagamento"
+2. **Selecione Idoso e Mês** - Escolha o idoso e mês desejado
+3. **Campos Inteligentes** - Digite ou selecione das listas históricas
+4. **Upload de NFSE** - Faça upload para preenchimento automático
+5. **Dados Salvos** - Próximos pagamentos terão os dados disponíveis
+
+### 🎯 **Resultado Final:**
+**Sistema completo de campos inteligentes implementado com sucesso!** Os usuários agora podem:
+- **Digitar manualmente** ou **selecionar** de listas históricas
+- **Preenchimento automático** baseado na última NFSE
+- **Reutilização de dados** para agilizar novos pagamentos
+- **Interface intuitiva** com botão "Novo Pagamento" no dashboard
+
+---
+
+## Fase 27: Implementação de Botões de Ativação (09/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar botões de ativação para idosos e responsáveis que foram desativados, permitindo reativá-los quando necessário.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Handlers do Electron Atualizados:**
+- ✅ **`electron/ipc-handlers/idosos.handler.ts`** - Adicionado handler `idosos:activate`
+- ✅ **`electron/ipc-handlers/responsaveis.handler.ts`** - Adicionado handler `responsaveis:activate`
+- ✅ **Funcionalidade completa** - Ativação com atualização do campo `ativo: true`
+- ✅ **Inclusão de relacionamentos** - Retorna dados completos com responsáveis/idosos
+
+#### **2. Interface TypeScript Atualizada:**
+- ✅ **`src/electron.d.ts`** - Adicionados métodos `activate` nas interfaces
+- ✅ **Tipagem completa** - Métodos tipados corretamente
+- ✅ **Compatibilidade** - Mantém compatibilidade com API existente
+
+#### **3. Mock da API Atualizado:**
+- ✅ **`src/services/mock-api.ts`** - Adicionados métodos `activate` no mock
+- ✅ **Simulação realista** - Delays e logs para debug
+- ✅ **Persistência** - Atualiza dados em localStorage
+- ✅ **Logs detalhados** - Feedback completo das operações
+
+#### **4. Componentes de Interface Atualizados:**
+
+##### **Lista de Idosos (`src/components/Idosos/IdososList.tsx`):**
+- ✅ **Função `handleActivate`** - Ativa idoso desativado
+- ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+- ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+- ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+- ✅ **Feedback visual** - Recarrega lista após ativação
+
+##### **Lista de Responsáveis (`src/components/Responsaveis/ResponsaveisList.tsx`):**
+- ✅ **Função `handleActivate`** - Ativa responsável desativado
+- ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+- ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+- ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+- ✅ **Feedback visual** - Recarrega lista após ativação
+
+#### **5. Funcionalidades Implementadas:**
+- ✅ **Ativação de idosos** - Reativa idosos desativados
+- ✅ **Ativação de responsáveis** - Reativa responsáveis desativados
+- ✅ **Interface intuitiva** - Botões aparecem condicionalmente
+- ✅ **Feedback visual** - Cores e ícones apropriados
+- ✅ **Validação** - Verifica se item existe antes de ativar
+- ✅ **Atualização automática** - Lista recarrega após operação
+
+### 🔧 **Detalhes Técnicos:**
+
+#### **Handler de Ativação de Idosos:**
+```typescript
+ipcMain.handle('idosos:activate', async (event, id: number) => {
+  try {
+    const idoso = await prisma.idoso.update({
+      where: { id },
+      data: { ativo: true },
+      include: {
+        responsavel: true,
+      },
+    });
+    return idoso;
+  } catch (error) {
+    console.error('Erro ao ativar idoso:', error);
+    throw error;
+  }
+});
+```
+
+#### **Handler de Ativação de Responsáveis:**
+```typescript
+ipcMain.handle('responsaveis:activate', async (event, id: number) => {
+  try {
+    const responsavel = await prisma.responsavel.update({
+      where: { id },
+      data: { ativo: true },
+      include: {
+        idosos: {
+          where: { ativo: true },
+        },
+      },
+    });
+    return responsavel;
+  } catch (error) {
+    console.error('Erro ao ativar responsável:', error);
+    throw error;
+  }
+});
+```
+
+#### **Menu Condicional:**
+```typescript
+{selectedIdoso?.ativo ? (
+  <MenuItem onClick={() => handleDeactivate(selectedIdoso!)} sx={{ color: 'warning.main' }}>
+    <ListItemIcon>
+      <BlockIcon fontSize="small" color="warning" />
+    </ListItemIcon>
+    <ListItemText>Desativar</ListItemText>
+  </MenuItem>
+) : (
+  <MenuItem onClick={() => handleActivate(selectedIdoso!)} sx={{ color: 'success.main' }}>
+    <ListItemIcon>
+      <CheckCircleIcon fontSize="small" color="success" />
+    </ListItemIcon>
+    <ListItemText>Ativar</ListItemText>
+  </MenuItem>
+)}
+```
+
+### 📊 **Status:**
+- ✅ **Handlers do Electron** - Implementados e funcionando
+- ✅ **Interface TypeScript** - Atualizada com novos métodos
+- ✅ **Mock da API** - Atualizado com simulação completa
+- ✅ **Componentes de interface** - Atualizados com botões de ativação
+- ✅ **Menu condicional** - Mostra opção apropriada baseada no status
+- ✅ **Feedback visual** - Cores e ícones apropriados
+- ✅ **Funcionalidade completa** - Ativação funcionando perfeitamente
+
+### 🎯 **Resultado:**
+O sistema agora oferece:
+1. **Ativação de idosos** - Reativa idosos que foram desativados
+2. **Ativação de responsáveis** - Reativa responsáveis que foram desativados
+3. **Interface intuitiva** - Botões aparecem condicionalmente baseado no status
+4. **Feedback visual claro** - Cores e ícones indicam a ação apropriada
+5. **Operação segura** - Validação e tratamento de erros implementados
+6. **Atualização automática** - Listas recarregam após operações
+
+**Agora é possível ativar idosos e responsáveis que foram desativados!** ✅🚀
+
+---
+
+## Fase 31: Sistema de Upload Inteligente com Criação de Pagamento e Filtros Avançados (11/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar sistema de upload inteligente que cria novos pagamentos automaticamente, busca idosos por nome/razão social, preenche dados faltantes com histórico e adiciona filtros avançados por data de emissão.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Estrutura do Banco de Dados Atualizada:**
+- ✅ **Campo `dataEmissao`** - Adicionado na tabela `notas_fiscais` para armazenar data de emissão da NFSE
+- ✅ **Migration aplicada** - `20251011210034_add_data_emissao_nota_fiscal`
+- ✅ **Schema Prisma atualizado** - Novo campo com tipo DateTime opcional
+- ✅ **Relacionamentos mantidos** - Estrutura existente preservada
+
+#### **2. Handlers do Electron Atualizados:**
+- ✅ **`notas-fiscais.handler.ts`** - Atualizado para incluir campo `dataEmissao` em create e update
+- ✅ **`idosos.handler.ts`** - Adicionado handler `idosos:getByNome` para busca por nome/razão social
+- ✅ **Busca inteligente** - Filtro case-insensitive com ordenação alfabética
+- ✅ **Tipagem completa** - Todos os handlers atualizados com novos campos
+
+#### **3. Interface TypeScript Atualizada:**
+- ✅ **`src/electron.d.ts`** - Adicionado campo `dataEmissao` na interface `NotaFiscal`
+- ✅ **Método `getByNome`** - Adicionado na interface `idosos` para busca por nome
+- ✅ **Tipagem completa** - Garantia de segurança de tipo para todas as operações
+
+#### **4. Mock API Atualizada:**
+- ✅ **`src/services/mock-api.ts`** - Implementado método `getByNome` para busca de idosos
+- ✅ **Simulação realista** - Busca case-insensitive com ordenação alfabética
+- ✅ **Logs detalhados** - Feedback completo das operações de busca
+
+#### **5. Sistema de Upload Inteligente:**
+- ✅ **Busca automática por nome/razão social** - Encontra idoso correspondente na NFSE
+- ✅ **Criação automática de pagamento** - Novo pagamento criado via upload com forma de pagamento
+- ✅ **Preenchimento inteligente** - Dados faltantes preenchidos com última nota (Pagador e Forma de Pagamento)
+- ✅ **Integração completa** - Upload conectado ao sistema de pagamentos
+
+#### **6. Filtros Avançados Atualizados:**
+- ✅ **Novo filtro "Data Emissão"** - Ordenação por data de emissão da NFSE
+- ✅ **Interface atualizada** - Botão com setas ⬆️⬇️ para indicar direção
+- ✅ **Filtros disponíveis:**
+  - 📅 **Filtro por Data:** Hoje, última semana, último mês, todas
+  - 🔢 **Ordenação por ID:** Maior/menor com setas visuais
+  - 📅 **Ordenação por Data Pagamento:** Mais recente/antigo
+  - 📅 **Ordenação por Data Emissão:** Mais recente/antigo (NOVO!)
+  - 📅 **Ordenação por Data Criação:** Mais recente/antigo
+
+#### **7. Processamento Inteligente de Upload:**
+- ✅ **Identificação automática** - Busca idoso por nome/razão social extraído da NFSE
+- ✅ **Criação de pagamento** - Novo pagamento criado automaticamente se não existir
+- ✅ **Preenchimento de dados** - Pagador e forma de pagamento preenchidos com histórico
+- ✅ **Atualização de nota fiscal** - Nota rascunho atualizada com dados completos
+- ✅ **Status inteligente** - RASCUNHO → COMPLETA após upload
+
+### 🔧 **Detalhes Técnicos:**
+
+#### **Busca por Nome/Razão Social:**
+```typescript
+ipcMain.handle('idosos:getByNome', async (event, nome: string) => {
+  try {
+    const idosos = await prisma.idoso.findMany({
+      where: {
+        nome: {
+          contains: nome,
+          mode: 'insensitive',
+        },
+      },
+      include: {
+        responsavel: true,
+      },
+      orderBy: { nome: 'asc' },
+    });
+    return idosos;
+  } catch (error) {
+    console.error('Erro ao buscar idosos por nome:', error);
+    throw error;
+  }
+});
+```
+
+#### **Processamento de Upload Inteligente:**
+```typescript
+const handleNFSEProcessed = async (data: any) => {
+  // Buscar idoso por nome/razão social se não tiver idosoId
+  if (!idosoId && data.nomePessoa) {
+    const idososEncontrados = await window.electronAPI.idosos.getByNome(data.nomePessoa);
+    if (idososEncontrados.length > 0) {
+      idosoId = idososEncontrados[0].id;
+    }
+  }
+  
+  // Preencher dados faltantes com histórico
+  if (idosoId) {
+    const pagadoresHistorico = await window.electronAPI.pagamentos.getPagadoresByIdoso(idosoId);
+    if (pagadoresHistorico.length > 0) {
+      const ultimoPagador = pagadoresHistorico[0];
+      if (!pagador) pagador = ultimoPagador.nome;
+      if (!formaPagamento) formaPagamento = ultimoPagador.formaPagamento;
+    }
+  }
+  
+  // Criar novo pagamento se não existir
+  if (!pagamentoId && idosoId) {
+    const novoPagamento = await window.electronAPI.pagamentos.upsert({
+      idosoId: idosoId,
+      mesReferencia: mesAtual,
+      anoReferencia: anoAtual,
+      valorPago: data.valor || 0,
+      dataPagamento: data.dataPrestacao ? new Date(data.dataPrestacao) : new Date(),
+      nfse: data.numeroNFSE,
+      pagador: pagador,
+      formaPagamento: formaPagamento,
+      observacoes: `Pagamento criado via upload de NFSE`
+    });
+    pagamentoId = novoPagamento.id;
+  }
+};
+```
+
+#### **Filtro por Data de Emissão:**
+```typescript
+case 'dataEmissao':
+  aValue = a.dataEmissao ? new Date(a.dataEmissao).getTime() : 0;
+  bValue = b.dataEmissao ? new Date(b.dataEmissao).getTime() : 0;
+  break;
+```
+
+### 📊 **Fluxo de Upload Inteligente:**
+
+1. **Upload da NFSE** - Gemini extrai dados incluindo "Data Emissão"
+2. **Busca do Idoso** - Sistema busca por nome/razão social automaticamente
+3. **Histórico de Pagadores** - Busca dados da última nota para preenchimento
+4. **Criação de Pagamento** - Novo pagamento criado com dados extraídos
+5. **Atualização da Nota** - Nota fiscal rascunho atualizada com dados completos
+6. **Status Final** - Nota fiscal marcada como COMPLETA
+
+### 📊 **Status:**
+- ✅ **Campo dataEmissao** - Adicionado e funcionando
+- ✅ **Busca por nome/razão social** - Implementada e funcionando
+- ✅ **Criação automática de pagamento** - Upload cria pagamentos automaticamente
+- ✅ **Preenchimento inteligente** - Dados faltantes preenchidos com histórico
+- ✅ **Filtro por data de emissão** - Ordenação implementada
+- ✅ **Interface atualizada** - Botões de ordenação com setas visuais
+- ✅ **Integração completa** - Sistema funcionando end-to-end
+
+### 🎯 **Resultado:**
+O sistema agora oferece:
+1. **Upload inteligente** - Cria pagamentos automaticamente via upload de NFSE
+2. **Busca automática** - Encontra idosos por nome/razão social extraído da NFSE
+3. **Preenchimento inteligente** - Dados faltantes preenchidos com histórico do idoso
+4. **Filtros avançados** - Ordenação por data de emissão com interface intuitiva
+5. **Integração completa** - Upload conectado ao sistema de pagamentos
+6. **Dados persistentes** - Informações salvas para reutilização futura
+
+**Sistema de upload inteligente e filtros avançados implementado com sucesso!** ✅🚀
+
+---
+
+## Fase 32: Melhoria do Prompt da IA para Extração Automática de Campos (11/01/2025)
+
+### 🎯 **Objetivo:**
+Melhorar o prompt da IA Gemini para extrair automaticamente campos como "Data de Emissão", "Mês de Referência" e "Forma de Pagamento" da discriminação do serviço da NFSE.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Interface ExtractedNFSEData Atualizada:**
+- ✅ **Campo `dataEmissao`** - Adicionado para armazenar data de emissão da NFSE
+- ✅ **Campo `formaPagamento`** - Adicionado para extrair forma de pagamento da discriminação
+- ✅ **Campo `mesReferencia`** - Adicionado para extrair mês de referência da discriminação
+- ✅ **Tipagem completa** - Todos os campos opcionais para flexibilidade
+
+#### **2. Prompt da IA Melhorado:**
+- ✅ **Instruções específicas** - Para extração de data de emissão, forma de pagamento e mês de referência
+- ✅ **Exemplos práticos** - Baseados em discriminações reais como:
+  - "Valor referente participação no custeio da entidade. Referente ao mês de Outubro de 2025. Conforme Pix banco do Brasil."
+  - "Mensalidade referente ao mês de Setembro de 2025. Conforme PIX SICREDI."
+- ✅ **Padrões de reconhecimento** - Para identificar formas de pagamento (PIX, PIX BB, PIX SICREDI, DINHEIRO, etc.)
+- ✅ **Conversão de datas** - Para formato MM/AAAA a partir de texto como "Outubro de 2025"
+
+#### **3. Extração Inteligente de Dados:**
+- ✅ **Data de Emissão** - Extraída automaticamente quando diferente da data de prestação
+- ✅ **Forma de Pagamento** - Identificada na discriminação (PIX, PIX BB, PIX SICREDI, DINHEIRO, etc.)
+- ✅ **Mês de Referência** - Extraído de padrões como "mês de [Mês] de [Ano]"
+- ✅ **Validação robusta** - Campos opcionais com fallbacks apropriados
+
+#### **4. Preenchimento Automático:**
+- ✅ **NFSEUpload** - Campos preenchidos automaticamente após extração
+- ✅ **PaymentModal** - Dados extraídos integrados ao formulário
+- ✅ **Logs detalhados** - Para debug e acompanhamento da extração
+- ✅ **Fallback inteligente** - Dados simulados quando IA não disponível
+
+### 🔧 **Detalhes Técnicos:**
+
+#### **Prompt Melhorado:**
+```typescript
+const prompt = `
+Analise este PDF de Nota Fiscal de Serviço Eletrônica (NFSE) e extraia as seguintes informações em formato JSON:
+
+{
+  "numeroNFSE": "número da NFSE",
+  "dataPrestacao": "data no formato DD/MM/AAAA",
+  "dataEmissao": "data de emissão no formato DD/MM/AAAA (se diferente da dataPrestacao)",
+  "discriminacao": "texto da discriminação do serviço",
+  "valor": valor_numerico_sem_formato,
+  "nomePessoa": "nome completo da pessoa/empresa",
+  "formaPagamento": "forma de pagamento extraída da discriminação",
+  "mesReferencia": "mês de referência extraído da discriminação no formato MM/AAAA"
+}
+
+EXEMPLOS DE EXTRAÇÃO DA DISCRIMINAÇÃO:
+- "Valor referente participação no custeio da entidade. Referente ao mês de Outubro de 2025. Conforme Pix banco do Brasil."
+  → mesReferencia: "10/2025", formaPagamento: "PIX BB"
+- "Mensalidade referente ao mês de Setembro de 2025. Conforme PIX SICREDI."
+  → mesReferencia: "09/2025", formaPagamento: "PIX SICREDI"
+`;
+```
+
+#### **Preenchimento Automático:**
+```typescript
+// Preencher automaticamente os campos extraídos pela IA
+if (extractedData.mesReferencia) {
+  setMesReferencia(extractedData.mesReferencia);
+}
+if (extractedData.formaPagamento) {
+  setFormaPagamento(extractedData.formaPagamento);
+}
+```
+
+### 📊 **Exemplos de Extração Automática:**
+
+#### **Discriminação Original:**
+```
+"Valor referente participação no custeio da entidade. Referente ao mês de Outubro de 2025. Conforme Pix banco do Brasil."
+```
+
+#### **Dados Extraídos Automaticamente:**
+- **Data Emissão:** Extraída do documento
+- **Mês de Referência:** "10/2025" (convertido de "Outubro de 2025")
+- **Forma de Pagamento:** "PIX BB" (extraído de "Pix banco do Brasil")
+
+### 📊 **Status:**
+- ✅ **Interface atualizada** - Novos campos na ExtractedNFSEData
+- ✅ **Prompt melhorado** - Instruções específicas com exemplos
+- ✅ **Extração automática** - Data de emissão, forma de pagamento e mês de referência
+- ✅ **Preenchimento automático** - Campos preenchidos após upload
+- ✅ **Fallback inteligente** - Dados simulados quando IA não disponível
+- ✅ **Logs detalhados** - Para debug e acompanhamento
+
+### 🎯 **Resultado:**
+A IA agora extrai automaticamente:
+1. **Data de Emissão** - Quando disponível no documento
+2. **Mês de Referência** - Convertido de texto para formato MM/AAAA
+3. **Forma de Pagamento** - Identificada na discriminação (PIX, PIX BB, PIX SICREDI, etc.)
+4. **Preenchimento automático** - Campos preenchidos sem intervenção manual
+5. **Validação robusta** - Campos opcionais com fallbacks apropriados
+
+**Prompt da IA melhorado para extração automática de campos implementado com sucesso!** ✅🚀
+
+---
+
+## Fase 33: Sistema de Lixeira Inteligente e Filtros de Visibilidade (11/01/2025)
+
+### 🎯 **Objetivo:**
+Implementar sistema de lixeira inteligente para notas fiscais, responsáveis e idosos, com funcionalidade de cancelamento/desativação na primeira vez e exclusão permanente na segunda vez, além de filtros de visibilidade.
+
+### ✅ **Implementações Realizadas:**
+
+#### **1. Sistema de Lixeira para Notas Fiscais:**
+- ✅ **Status CANCELADA** - Adicionado ao schema e interface TypeScript
+- ✅ **Primeira vez** - Marca nota como "CANCELADA" (vermelho)
+- ✅ **Segunda vez** - Exclui permanentemente com confirmação
+- ✅ **Diálogo inteligente** - Mostra ação apropriada baseada no status
+- ✅ **Visual diferenciado** - Notas canceladas em vermelho
+
+#### **2. Sistema de Lixeira para Responsáveis e Idosos:**
+- ✅ **Menu dos 3 pontinhos** - Lixeira integrada ao menu existente
+- ✅ **Primeira vez** - Desativa (marca como inativo)
+- ✅ **Segunda vez** - Exclui permanentemente
+- ✅ **Texto dinâmico** - "Desativar" ou "Excluir Permanentemente"
+- ✅ **Consistência visual** - Cor laranja para lixeira
+
+#### **3. Filtros de Visibilidade:**
+- ✅ **Botão olho** - Para mostrar/esconder notas canceladas
+- ✅ **Estado persistente** - Filtro mantido durante navegação
+- ✅ **Visual intuitivo** - Ícone de olho aberto/fechado
+- ✅ **Cor diferenciada** - Botão vermelho quando mostrando canceladas
+
+#### **4. Backend e API:**
+- ✅ **Handler de cancelamento** - `notas-fiscais:cancel` no IPC
+- ✅ **Interface TypeScript** - Status CANCELADA adicionado
+- ✅ **Mock API** - Implementação completa para desenvolvimento
+- ✅ **Validação robusta** - Tratamento de erros e estados
+
+### 🔧 **Detalhes Técnicos:**
+
+#### **Schema Atualizado:**
+```prisma
+model NotaFiscal {
+  // ... outros campos
+  status String @default("RASCUNHO") // RASCUNHO, COMPLETA, PROCESSADA, CANCELADA
+  // ... outros campos
+}
+```
+
+#### **Handler de Cancelamento:**
+```typescript
+// Cancelar nota fiscal (marca como CANCELADA)
+ipcMain.handle('notas-fiscais:cancel', async (event, id: number) => {
+  try {
+    const notaCancelada = await prisma.notaFiscal.update({
+      where: { id },
+      data: { status: 'CANCELADA' },
+      include: {
+        idoso: { include: { responsavel: true } },
+        pagamento: true,
+      },
+    });
+    return notaCancelada;
+  } catch (error) {
+    console.error('Erro ao cancelar nota fiscal:', error);
+    throw error;
+  }
+});
+```
+
+#### **Lógica de Lixeira Inteligente:**
+```typescript
+const handleTrashClick = (nota: NotaFiscal) => {
+  setNotaParaExcluir(nota);
+  setIsCancelada(nota.status === 'CANCELADA');
+  setConfirmDeleteOpen(true);
+};
+
+const handleConfirmDelete = async () => {
+  if (isCancelada) {
+    // Segunda vez - excluir permanentemente
+    await window.electronAPI.notasFiscais.delete(notaParaExcluir.id);
+    setSnackbarMessage('Nota fiscal excluída permanentemente!');
+  } else {
+    // Primeira vez - cancelar
+    await window.electronAPI.notasFiscais.cancel(notaParaExcluir.id);
+    setSnackbarMessage('Nota fiscal cancelada!');
+  }
+};
+```
+
+#### **Filtro de Visibilidade:**
+```typescript
+// Filtro por notas canceladas
+if (!showCanceladas) {
+  filtered = filtered.filter(nota => nota.status !== 'CANCELADA');
+}
+
+// Botão de visibilidade
+<Button
+  variant={showCanceladas ? 'contained' : 'outlined'}
+  startIcon={showCanceladas ? <VisibilityIcon /> : <VisibilityOffIcon />}
+  onClick={() => setShowCanceladas(!showCanceladas)}
+  color={showCanceladas ? 'error' : 'default'}
+>
+  {showCanceladas ? 'Mostrar Canceladas' : 'Esconder Canceladas'}
+</Button>
+```
+
+### 📊 **Fluxo de Funcionamento:**
+
+#### **Notas Fiscais:**
+1. **Primeira vez na lixeira** → Status muda para "CANCELADA" (vermelho)
+2. **Segunda vez na lixeira** → Diálogo de confirmação para exclusão permanente
+3. **Botão olho** → Mostra/esconde notas canceladas
+
+#### **Responsáveis e Idosos:**
+1. **Primeira vez na lixeira** → Desativa (marca como inativo)
+2. **Segunda vez na lixeira** → Diálogo de confirmação para exclusão permanente
+3. **Menu dos 3 pontinhos** → Lixeira integrada ao menu existente
+
+### 🎨 **Interface Visual:**
+
+#### **Notas Canceladas:**
+- **Chip vermelho** com texto branco
+- **Botão lixeira** em vermelho
+- **Filtro de visibilidade** com botão olho
+
+#### **Responsáveis/Idosos:**
+- **Menu lixeira** em laranja
+- **Texto dinâmico** baseado no status
+- **Consistência visual** com sistema existente
+
+### 📊 **Status:**
+- ✅ **Notas Fiscais** - Sistema de lixeira implementado
+- ✅ **Responsáveis** - Lixeira nos 3 pontinhos
+- ✅ **Idosos** - Lixeira nos 3 pontinhos
+- ✅ **Filtros de visibilidade** - Botão olho para notas canceladas
+- ✅ **Backend completo** - Handlers e validações
+- ✅ **Interface consistente** - Visual unificado
+
+### 🎯 **Resultado:**
+Sistema de lixeira inteligente implementado com:
+1. **Cancelamento/Desativação** - Primeira vez marca como cancelado/inativo
+2. **Exclusão permanente** - Segunda vez com confirmação
+3. **Filtros de visibilidade** - Botão olho para esconder cancelados
+4. **Interface consistente** - Visual unificado em todas as telas
+5. **Validação robusta** - Tratamento de erros e estados
+
+**Sistema de lixeira inteligente e filtros de visibilidade implementado com sucesso!** ✅🚀

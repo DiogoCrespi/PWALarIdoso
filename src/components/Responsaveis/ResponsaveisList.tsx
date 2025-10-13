@@ -33,6 +33,7 @@ import {
   Email as EmailIcon,
   Add as AddIcon,
   Block as BlockIcon,
+  CheckCircle as CheckCircleIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
@@ -190,6 +191,21 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
     handleMenuClose();
   };
 
+  // Lixeira - primeira vez desativa, segunda vez exclui
+  const handleTrashClick = () => {
+    if (selectedResponsavel) {
+      if (selectedResponsavel.ativo) {
+        // Primeira vez - desativar
+        handleDeactivate();
+      } else {
+        // Segunda vez - excluir permanentemente
+        setResponsavelToDelete(selectedResponsavel);
+        setDeleteDialogOpen(true);
+      }
+    }
+    handleMenuClose();
+  };
+
   // Desativar responsável
   const handleDeactivate = async () => {
     if (!selectedResponsavel) return;
@@ -201,6 +217,20 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
     } catch (error) {
       console.error('Erro ao desativar responsável:', error);
       alert('Erro ao desativar responsável: ' + (error as Error).message);
+    }
+  };
+
+  // Ativar responsável
+  const handleActivate = async () => {
+    if (!selectedResponsavel) return;
+    
+    try {
+      await window.electronAPI.responsaveis.activate(selectedResponsavel.id);
+      await loadResponsaveis();
+      handleMenuClose();
+    } catch (error) {
+      console.error('Erro ao ativar responsável:', error);
+      alert('Erro ao ativar responsável: ' + (error as Error).message);
     }
   };
 
@@ -427,13 +457,20 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
           <EditIcon sx={{ mr: 1 }} />
           Editar
         </MenuItem>
-        <MenuItem onClick={handleDeactivate} sx={{ color: 'warning.main' }}>
-          <BlockIcon sx={{ mr: 1 }} />
-          Desativar
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+        {selectedResponsavel?.ativo ? (
+          <MenuItem onClick={handleDeactivate} sx={{ color: 'warning.main' }}>
+            <BlockIcon sx={{ mr: 1 }} />
+            Desativar
+          </MenuItem>
+        ) : (
+          <MenuItem onClick={handleActivate} sx={{ color: 'success.main' }}>
+            <CheckCircleIcon sx={{ mr: 1 }} />
+            Ativar
+          </MenuItem>
+        )}
+        <MenuItem onClick={handleTrashClick} sx={{ color: 'warning.main' }}>
           <DeleteIcon sx={{ mr: 1 }} />
-          Excluir
+          {selectedResponsavel?.ativo ? 'Desativar' : 'Excluir Permanentemente'}
         </MenuItem>
       </Menu>
 

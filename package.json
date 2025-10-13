@@ -47,6 +47,7 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "prisma": "^5.7.1",
+    "puppeteer": "^24.24.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",

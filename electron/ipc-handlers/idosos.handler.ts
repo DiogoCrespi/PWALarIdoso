@@ -110,6 +110,45 @@ export function setupIdososHandlers() {
       throw error;
     }
   });
+
+  // Ativar idoso
+  ipcMain.handle('idosos:activate', async (event, id: number) => {
+    try {
+      const idoso = await prisma.idoso.update({
+        where: { id },
+        data: { ativo: true },
+        include: {
+          responsavel: true,
+        },
+      });
+      return idoso;
+    } catch (error) {
+      console.error('Erro ao ativar idoso:', error);
+      throw error;
+    }
+  });
+
+  // Buscar idoso por nome/razão social
+  ipcMain.handle('idosos:getByNome', async (event, nome: string) => {
+    try {
+      const idosos = await prisma.idoso.findMany({
+        where: {
+          nome: {
+            contains: nome,
+            mode: 'insensitive',
+          },
+        },
+        include: {
+          responsavel: true,
+        },
+        orderBy: { nome: 'asc' },
+      });
+      return idosos;
+    } catch (error) {
+      console.error('Erro ao buscar idosos por nome:', error);
+      throw error;
+    }
+  });
 }
 
 

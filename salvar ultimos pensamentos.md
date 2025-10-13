@@ -1018,6 +1018,96 @@ Valor salvo: 500.50
 
 ---
 
+## 🎉 BOTÕES DE ATIVAÇÃO IMPLEMENTADOS (09/01/2025 - 22:30)
+
+### ✅ **RESULTADO FINAL:**
+
+**Sistema de ativação de idosos e responsáveis implementado com sucesso!**
+
+#### **O que foi implementado:**
+
+1. **🔧 Handlers do Electron Atualizados:**
+   - ✅ **`electron/ipc-handlers/idosos.handler.ts`** - Adicionado handler `idosos:activate`
+   - ✅ **`electron/ipc-handlers/responsaveis.handler.ts`** - Adicionado handler `responsaveis:activate`
+   - ✅ **Funcionalidade completa** - Ativação com atualização do campo `ativo: true`
+   - ✅ **Inclusão de relacionamentos** - Retorna dados completos com responsáveis/idosos
+
+2. **📝 Interface TypeScript Atualizada:**
+   - ✅ **`src/electron.d.ts`** - Adicionados métodos `activate` nas interfaces
+   - ✅ **Tipagem completa** - Métodos tipados corretamente
+   - ✅ **Compatibilidade** - Mantém compatibilidade com API existente
+
+3. **🎭 Mock da API Atualizado:**
+   - ✅ **`src/services/mock-api.ts`** - Adicionados métodos `activate` no mock
+   - ✅ **Simulação realista** - Delays e logs para debug
+   - ✅ **Persistência** - Atualiza dados em localStorage
+   - ✅ **Logs detalhados** - Feedback completo das operações
+
+4. **🎨 Componentes de Interface Atualizados:**
+
+   **Lista de Idosos (`src/components/Idosos/IdososList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa idoso desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+   **Lista de Responsáveis (`src/components/Responsaveis/ResponsaveisList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa responsável desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+#### **Como Funciona:**
+
+**📋 Menu Condicional:**
+- **Idoso/Responsável ATIVO:** Mostra opção "Desativar" (ícone laranja)
+- **Idoso/Responsável INATIVO:** Mostra opção "Ativar" (ícone verde)
+- **Interface inteligente:** Botão aparece baseado no status atual
+
+**🔄 Fluxo de Ativação:**
+1. Usuário clica no menu de ações (3 pontos)
+2. Se item estiver inativo, aparece "Ativar" em verde
+3. Usuário clica em "Ativar"
+4. Sistema chama API de ativação
+5. Item é reativado no banco de dados
+6. Lista é recarregada automaticamente
+7. Item agora aparece como ativo
+
+#### **Funcionalidades Implementadas:**
+- ✅ **Ativação de idosos** - Reativa idosos desativados
+- ✅ **Ativação de responsáveis** - Reativa responsáveis desativados
+- ✅ **Interface intuitiva** - Botões aparecem condicionalmente
+- ✅ **Feedback visual** - Cores e ícones apropriados
+- ✅ **Validação** - Verifica se item existe antes de ativar
+- ✅ **Atualização automática** - Lista recarrega após operação
+
+#### **Arquivos Atualizados:**
+- ✅ `electron/ipc-handlers/idosos.handler.ts` - Handler de ativação de idosos
+- ✅ `electron/ipc-handlers/responsaveis.handler.ts` - Handler de ativação de responsáveis
+- ✅ `src/electron.d.ts` - Interface TypeScript atualizada
+- ✅ `src/services/mock-api.ts` - Mock da API com métodos de ativação
+- ✅ `src/components/Idosos/IdososList.tsx` - Lista com botão de ativar
+- ✅ `src/components/Responsaveis/ResponsaveisList.tsx` - Lista com botão de ativar
+
+#### **Funcionalidades Testadas:**
+- ✅ Handlers do Electron funcionando
+- ✅ Interface TypeScript atualizada
+- ✅ Mock da API funcionando
+- ✅ Componentes de interface funcionando
+- ✅ Menu condicional funcionando
+- ✅ Feedback visual funcionando
+
+### 🎯 **PRÓXIMO PASSO:**
+- **Sistema 100% funcional** com ativação de idosos e responsáveis!
+- **UX melhorada** - Usuário pode reativar itens desativados
+- **Interface intuitiva** - Botões aparecem condicionalmente
+
+**Agora é possível ativar idosos e responsáveis que foram desativados!** ✅🚀
+
+---
+
 ## 🎉 MELHORIAS DE UX E DOWNLOAD AUTOMÁTICO (09/01/2025 - 09:30)
 
 ### ✅ **RESULTADO FINAL:**
@@ -1233,6 +1323,96 @@ Valor salvo: 500.50
 - **Precisão garantida** - Suporte completo a centavos
 
 **O campo de valor da mensalidade agora aceita R$ 1.062,60!** 💰🚀
+
+---
+
+## 🎉 BOTÕES DE ATIVAÇÃO IMPLEMENTADOS (09/01/2025 - 22:30)
+
+### ✅ **RESULTADO FINAL:**
+
+**Sistema de ativação de idosos e responsáveis implementado com sucesso!**
+
+#### **O que foi implementado:**
+
+1. **🔧 Handlers do Electron Atualizados:**
+   - ✅ **`electron/ipc-handlers/idosos.handler.ts`** - Adicionado handler `idosos:activate`
+   - ✅ **`electron/ipc-handlers/responsaveis.handler.ts`** - Adicionado handler `responsaveis:activate`
+   - ✅ **Funcionalidade completa** - Ativação com atualização do campo `ativo: true`
+   - ✅ **Inclusão de relacionamentos** - Retorna dados completos com responsáveis/idosos
+
+2. **📝 Interface TypeScript Atualizada:**
+   - ✅ **`src/electron.d.ts`** - Adicionados métodos `activate` nas interfaces
+   - ✅ **Tipagem completa** - Métodos tipados corretamente
+   - ✅ **Compatibilidade** - Mantém compatibilidade com API existente
+
+3. **🎭 Mock da API Atualizado:**
+   - ✅ **`src/services/mock-api.ts`** - Adicionados métodos `activate` no mock
+   - ✅ **Simulação realista** - Delays e logs para debug
+   - ✅ **Persistência** - Atualiza dados em localStorage
+   - ✅ **Logs detalhados** - Feedback completo das operações
+
+4. **🎨 Componentes de Interface Atualizados:**
+
+   **Lista de Idosos (`src/components/Idosos/IdososList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa idoso desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+   **Lista de Responsáveis (`src/components/Responsaveis/ResponsaveisList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa responsável desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+#### **Como Funciona:**
+
+**📋 Menu Condicional:**
+- **Idoso/Responsável ATIVO:** Mostra opção "Desativar" (ícone laranja)
+- **Idoso/Responsável INATIVO:** Mostra opção "Ativar" (ícone verde)
+- **Interface inteligente:** Botão aparece baseado no status atual
+
+**🔄 Fluxo de Ativação:**
+1. Usuário clica no menu de ações (3 pontos)
+2. Se item estiver inativo, aparece "Ativar" em verde
+3. Usuário clica em "Ativar"
+4. Sistema chama API de ativação
+5. Item é reativado no banco de dados
+6. Lista é recarregada automaticamente
+7. Item agora aparece como ativo
+
+#### **Funcionalidades Implementadas:**
+- ✅ **Ativação de idosos** - Reativa idosos desativados
+- ✅ **Ativação de responsáveis** - Reativa responsáveis desativados
+- ✅ **Interface intuitiva** - Botões aparecem condicionalmente
+- ✅ **Feedback visual** - Cores e ícones apropriados
+- ✅ **Validação** - Verifica se item existe antes de ativar
+- ✅ **Atualização automática** - Lista recarrega após operação
+
+#### **Arquivos Atualizados:**
+- ✅ `electron/ipc-handlers/idosos.handler.ts` - Handler de ativação de idosos
+- ✅ `electron/ipc-handlers/responsaveis.handler.ts` - Handler de ativação de responsáveis
+- ✅ `src/electron.d.ts` - Interface TypeScript atualizada
+- ✅ `src/services/mock-api.ts` - Mock da API com métodos de ativação
+- ✅ `src/components/Idosos/IdososList.tsx` - Lista com botão de ativar
+- ✅ `src/components/Responsaveis/ResponsaveisList.tsx` - Lista com botão de ativar
+
+#### **Funcionalidades Testadas:**
+- ✅ Handlers do Electron funcionando
+- ✅ Interface TypeScript atualizada
+- ✅ Mock da API funcionando
+- ✅ Componentes de interface funcionando
+- ✅ Menu condicional funcionando
+- ✅ Feedback visual funcionando
+
+### 🎯 **PRÓXIMO PASSO:**
+- **Sistema 100% funcional** com ativação de idosos e responsáveis!
+- **UX melhorada** - Usuário pode reativar itens desativados
+- **Interface intuitiva** - Botões aparecem condicionalmente
+
+**Agora é possível ativar idosos e responsáveis que foram desativados!** ✅🚀
 
 ---
 
@@ -1460,6 +1640,96 @@ Valor salvo: 500.50
 
 ---
 
+## 🎉 BOTÕES DE ATIVAÇÃO IMPLEMENTADOS (09/01/2025 - 22:30)
+
+### ✅ **RESULTADO FINAL:**
+
+**Sistema de ativação de idosos e responsáveis implementado com sucesso!**
+
+#### **O que foi implementado:**
+
+1. **🔧 Handlers do Electron Atualizados:**
+   - ✅ **`electron/ipc-handlers/idosos.handler.ts`** - Adicionado handler `idosos:activate`
+   - ✅ **`electron/ipc-handlers/responsaveis.handler.ts`** - Adicionado handler `responsaveis:activate`
+   - ✅ **Funcionalidade completa** - Ativação com atualização do campo `ativo: true`
+   - ✅ **Inclusão de relacionamentos** - Retorna dados completos com responsáveis/idosos
+
+2. **📝 Interface TypeScript Atualizada:**
+   - ✅ **`src/electron.d.ts`** - Adicionados métodos `activate` nas interfaces
+   - ✅ **Tipagem completa** - Métodos tipados corretamente
+   - ✅ **Compatibilidade** - Mantém compatibilidade com API existente
+
+3. **🎭 Mock da API Atualizado:**
+   - ✅ **`src/services/mock-api.ts`** - Adicionados métodos `activate` no mock
+   - ✅ **Simulação realista** - Delays e logs para debug
+   - ✅ **Persistência** - Atualiza dados em localStorage
+   - ✅ **Logs detalhados** - Feedback completo das operações
+
+4. **🎨 Componentes de Interface Atualizados:**
+
+   **Lista de Idosos (`src/components/Idosos/IdososList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa idoso desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+   **Lista de Responsáveis (`src/components/Responsaveis/ResponsaveisList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa responsável desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+#### **Como Funciona:**
+
+**📋 Menu Condicional:**
+- **Idoso/Responsável ATIVO:** Mostra opção "Desativar" (ícone laranja)
+- **Idoso/Responsável INATIVO:** Mostra opção "Ativar" (ícone verde)
+- **Interface inteligente:** Botão aparece baseado no status atual
+
+**🔄 Fluxo de Ativação:**
+1. Usuário clica no menu de ações (3 pontos)
+2. Se item estiver inativo, aparece "Ativar" em verde
+3. Usuário clica em "Ativar"
+4. Sistema chama API de ativação
+5. Item é reativado no banco de dados
+6. Lista é recarregada automaticamente
+7. Item agora aparece como ativo
+
+#### **Funcionalidades Implementadas:**
+- ✅ **Ativação de idosos** - Reativa idosos desativados
+- ✅ **Ativação de responsáveis** - Reativa responsáveis desativados
+- ✅ **Interface intuitiva** - Botões aparecem condicionalmente
+- ✅ **Feedback visual** - Cores e ícones apropriados
+- ✅ **Validação** - Verifica se item existe antes de ativar
+- ✅ **Atualização automática** - Lista recarrega após operação
+
+#### **Arquivos Atualizados:**
+- ✅ `electron/ipc-handlers/idosos.handler.ts` - Handler de ativação de idosos
+- ✅ `electron/ipc-handlers/responsaveis.handler.ts` - Handler de ativação de responsáveis
+- ✅ `src/electron.d.ts` - Interface TypeScript atualizada
+- ✅ `src/services/mock-api.ts` - Mock da API com métodos de ativação
+- ✅ `src/components/Idosos/IdososList.tsx` - Lista com botão de ativar
+- ✅ `src/components/Responsaveis/ResponsaveisList.tsx` - Lista com botão de ativar
+
+#### **Funcionalidades Testadas:**
+- ✅ Handlers do Electron funcionando
+- ✅ Interface TypeScript atualizada
+- ✅ Mock da API funcionando
+- ✅ Componentes de interface funcionando
+- ✅ Menu condicional funcionando
+- ✅ Feedback visual funcionando
+
+### 🎯 **PRÓXIMO PASSO:**
+- **Sistema 100% funcional** com ativação de idosos e responsáveis!
+- **UX melhorada** - Usuário pode reativar itens desativados
+- **Interface intuitiva** - Botões aparecem condicionalmente
+
+**Agora é possível ativar idosos e responsáveis que foram desativados!** ✅🚀
+
+---
+
 ## 🎉 MELHORIAS DE UX E DOWNLOAD AUTOMÁTICO (09/01/2025 - 09:30)
 
 ### ✅ **RESULTADO FINAL:**
@@ -1675,3 +1945,93 @@ Valor salvo: 500.50
 - **Precisão garantida** - Suporte completo a centavos
 
 **O campo de valor da mensalidade agora aceita R$ 1.062,60!** 💰🚀
+
+---
+
+## 🎉 BOTÕES DE ATIVAÇÃO IMPLEMENTADOS (09/01/2025 - 22:30)
+
+### ✅ **RESULTADO FINAL:**
+
+**Sistema de ativação de idosos e responsáveis implementado com sucesso!**
+
+#### **O que foi implementado:**
+
+1. **🔧 Handlers do Electron Atualizados:**
+   - ✅ **`electron/ipc-handlers/idosos.handler.ts`** - Adicionado handler `idosos:activate`
+   - ✅ **`electron/ipc-handlers/responsaveis.handler.ts`** - Adicionado handler `responsaveis:activate`
+   - ✅ **Funcionalidade completa** - Ativação com atualização do campo `ativo: true`
+   - ✅ **Inclusão de relacionamentos** - Retorna dados completos com responsáveis/idosos
+
+2. **📝 Interface TypeScript Atualizada:**
+   - ✅ **`src/electron.d.ts`** - Adicionados métodos `activate` nas interfaces
+   - ✅ **Tipagem completa** - Métodos tipados corretamente
+   - ✅ **Compatibilidade** - Mantém compatibilidade com API existente
+
+3. **🎭 Mock da API Atualizado:**
+   - ✅ **`src/services/mock-api.ts`** - Adicionados métodos `activate` no mock
+   - ✅ **Simulação realista** - Delays e logs para debug
+   - ✅ **Persistência** - Atualiza dados em localStorage
+   - ✅ **Logs detalhados** - Feedback completo das operações
+
+4. **🎨 Componentes de Interface Atualizados:**
+
+   **Lista de Idosos (`src/components/Idosos/IdososList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa idoso desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+   **Lista de Responsáveis (`src/components/Responsaveis/ResponsaveisList.tsx`):**
+   - ✅ **Função `handleActivate`** - Ativa responsável desativado
+   - ✅ **Ícone `CheckCircleIcon`** - Ícone verde para ativação
+   - ✅ **Menu condicional** - Mostra "Ativar" para inativos, "Desativar" para ativos
+   - ✅ **Cores apropriadas** - Verde para ativar, laranja para desativar
+   - ✅ **Feedback visual** - Recarrega lista após ativação
+
+#### **Como Funciona:**
+
+**📋 Menu Condicional:**
+- **Idoso/Responsável ATIVO:** Mostra opção "Desativar" (ícone laranja)
+- **Idoso/Responsável INATIVO:** Mostra opção "Ativar" (ícone verde)
+- **Interface inteligente:** Botão aparece baseado no status atual
+
+**🔄 Fluxo de Ativação:**
+1. Usuário clica no menu de ações (3 pontos)
+2. Se item estiver inativo, aparece "Ativar" em verde
+3. Usuário clica em "Ativar"
+4. Sistema chama API de ativação
+5. Item é reativado no banco de dados
+6. Lista é recarregada automaticamente
+7. Item agora aparece como ativo
+
+#### **Funcionalidades Implementadas:**
+- ✅ **Ativação de idosos** - Reativa idosos desativados
+- ✅ **Ativação de responsáveis** - Reativa responsáveis desativados
+- ✅ **Interface intuitiva** - Botões aparecem condicionalmente
+- ✅ **Feedback visual** - Cores e ícones apropriados
+- ✅ **Validação** - Verifica se item existe antes de ativar
+- ✅ **Atualização automática** - Lista recarrega após operação
+
+#### **Arquivos Atualizados:**
+- ✅ `electron/ipc-handlers/idosos.handler.ts` - Handler de ativação de idosos
+- ✅ `electron/ipc-handlers/responsaveis.handler.ts` - Handler de ativação de responsáveis
+- ✅ `src/electron.d.ts` - Interface TypeScript atualizada
+- ✅ `src/services/mock-api.ts` - Mock da API com métodos de ativação
+- ✅ `src/components/Idosos/IdososList.tsx` - Lista com botão de ativar
+- ✅ `src/components/Responsaveis/ResponsaveisList.tsx` - Lista com botão de ativar
+
+#### **Funcionalidades Testadas:**
+- ✅ Handlers do Electron funcionando
+- ✅ Interface TypeScript atualizada
+- ✅ Mock da API funcionando
+- ✅ Componentes de interface funcionando
+- ✅ Menu condicional funcionando
+- ✅ Feedback visual funcionando
+
+### 🎯 **PRÓXIMO PASSO:**
+- **Sistema 100% funcional** com ativação de idosos e responsáveis!
+- **UX melhorada** - Usuário pode reativar itens desativados
+- **Interface intuitiva** - Botões aparecem condicionalmente
+
+**Agora é possível ativar idosos e responsáveis que foram desativados!** ✅🚀

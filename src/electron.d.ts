@@ -57,18 +57,23 @@ export interface Configuracao {
 }
 
 export interface NotaFiscal {
-  id: string;
-  numeroNFSE: string;
-  dataPrestacao: string;
-  discriminacao: string;
-  mesReferencia: string;
-  valor: number;
+  id: number;
+  numeroNFSE?: string;
+  dataPrestacao?: Date;
+  dataEmissao?: Date;
+  discriminacao?: string;
+  valor?: number;
   nomePessoa?: string;
-  idosoId?: string;
-  idosoNome?: string;
-  responsavelNome?: string;
-  arquivo?: File;
-  dataUpload: Date;
+  idosoId: number;
+  idoso?: Idoso;
+  mesReferencia: number;
+  anoReferencia: number;
+  arquivoOriginal?: string;
+  status: 'RASCUNHO' | 'COMPLETA' | 'PROCESSADA' | 'CANCELADA';
+  pagamentoId?: number;
+  pagamento?: Pagamento;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface DashboardData {
@@ -88,7 +93,10 @@ export interface ElectronAPI {
     create: (data: Partial<Idoso>) => Promise<Idoso>;
     update: (id: number, data: Partial<Idoso>) => Promise<Idoso>;
     delete: (id: number) => Promise<Idoso>;
+    activate: (id: number) => Promise<Idoso>;
     getById: (id: number) => Promise<Idoso>;
+    getByPagador: (pagador: string) => Promise<Idoso[]>;
+    getByNome: (nome: string) => Promise<Idoso[]>;
   };
 
   responsaveis: {
@@ -96,6 +104,7 @@ export interface ElectronAPI {
     create: (data: Partial<Responsavel>) => Promise<Responsavel>;
     update: (id: number, data: Partial<Responsavel>) => Promise<Responsavel>;
     delete: (id: number) => Promise<Responsavel>;
+    activate: (id: number) => Promise<Responsavel>;
     getById: (id: number) => Promise<Responsavel>;
   };
 
@@ -107,6 +116,8 @@ export interface ElectronAPI {
     upsert: (data: Partial<Pagamento>) => Promise<Pagamento>;
     getByIdoso: (idosoId: number, ano: number) => Promise<Pagamento[]>;
     getById: (id: number) => Promise<Pagamento>;
+    getPagadoresByIdoso: (idosoId: number) => Promise<any[]>;
+    getAllWithIdosos: () => Promise<any[]>;
   };
 
   recibos: {
@@ -124,13 +135,16 @@ export interface ElectronAPI {
     set: (chave: string, valor: string) => Promise<Configuracao>;
   };
 
-  notasFiscais: {
-    list: () => Promise<NotaFiscal[]>;
-    create: (data: Partial<NotaFiscal>) => Promise<NotaFiscal>;
-    update: (id: string, data: Partial<NotaFiscal>) => Promise<NotaFiscal>;
-    delete: (id: string) => Promise<boolean>;
-    getById: (id: string) => Promise<NotaFiscal>;
-  };
+      notasFiscais: {
+        list: (filters?: { idosoId?: number; status?: string }) => Promise<NotaFiscal[]>;
+        create: (data: Partial<NotaFiscal>) => Promise<NotaFiscal>;
+        update: (id: number, data: Partial<NotaFiscal>) => Promise<NotaFiscal>;
+        cancel: (id: number) => Promise<NotaFiscal>;
+        delete: (id: number) => Promise<NotaFiscal>;
+        getById: (id: number) => Promise<NotaFiscal>;
+        getByIdoso: (idosoId: number) => Promise<NotaFiscal[]>;
+        getByPagamento: (pagamentoId: number) => Promise<NotaFiscal>;
+      };
 
   templates: {
     gerarMensalidade: (data: any) => Promise<{ fileName: string; path: string }>;

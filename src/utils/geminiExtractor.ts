@@ -4,9 +4,13 @@ import { GEMINI_CONFIG } from '../config/gemini';
 export interface ExtractedNFSEData {
   numeroNFSE: string;
   dataPrestacao: string;
+  dataEmissao?: string;
   discriminacao: string;
   valor: number;
   nomePessoa: string;
+  responsavelNome?: string;
+  formaPagamento?: string;
+  mesReferencia?: string;
 }
 
 /**
@@ -33,23 +37,49 @@ Analise este PDF de Nota Fiscal de Serviço Eletrônica (NFSE) e extraia as segu
 {
   "numeroNFSE": "número da NFSE",
   "dataPrestacao": "data no formato DD/MM/AAAA",
+  "dataEmissao": "data de emissão no formato DD/MM/AAAA (se diferente da dataPrestacao)",
   "discriminacao": "texto da discriminação do serviço",
   "valor": valor_numerico_sem_formato,
-  "nomePessoa": "nome completo da pessoa/empresa"
+  "nomePessoa": "nome completo da pessoa/empresa",
+  "responsavelNome": "nome do responsável extraído da discriminação (se mencionado)",
+  "formaPagamento": "forma de pagamento extraída da discriminação",
+  "mesReferencia": "mês de referência extraído da discriminação no formato MM/AAAA"
 }
 
 Instruções:
 - numeroNFSE: Encontre o número da NFSE (geralmente 4+ dígitos)
-- dataPrestacao: Data de emissão ou prestação no formato brasileiro (DD/MM/AAAA)
+- dataPrestacao: Data de prestação do serviço no formato brasileiro (DD/MM/AAAA)
+- dataEmissao: Data de emissão da NFSE (se diferente da dataPrestacao) no formato DD/MM/AAAA
 - discriminacao: Texto completo da discriminação do serviço
 - valor: Valor total como número decimal usando PONTO (ex: 1062.60, não 1.062,60)
 - nomePessoa: Nome completo do TOMADOR DO SERVIÇO (quem está pagando), NÃO o prestador
+- responsavelNome: Nome do responsável mencionado na discriminação (ex: "Antônio Marcos Bonassa" se aparecer "Ana Sangaleti Bonassa - Antônio Marcos Bonassa")
+- formaPagamento: Extraia a forma de pagamento da discriminação e substitua abreviações por nomes completos (ex: "PIX", "PIX Banco do Brasil", "PIX SICREDI", "DINHEIRO", "TRANSFERÊNCIA")
+- mesReferencia: Extraia o mês de referência da discriminação (ex: "10/2025" para "Outubro de 2025")
+
+EXEMPLOS DE EXTRAÇÃO DA DISCRIMINAÇÃO:
+- "Valor referente participação no custeio da entidade. Referente ao mês de Outubro de 2025. Conforme Pix banco do Brasil."
+  → mesReferencia: "10/2025", formaPagamento: "PIX Banco do Brasil"
+- "Mensalidade referente ao mês de Setembro de 2025. Conforme PIX SICREDI."
+  → mesReferencia: "09/2025", formaPagamento: "PIX SICREDI"
+- "Participação no custeio. Mês: Novembro/2025. Forma: DINHEIRO."
+  → mesReferencia: "11/2025", formaPagamento: "DINHEIRO"
+- "Pagamento via PIX BB realizado em dezembro de 2025."
+  → mesReferencia: "12/2025", formaPagamento: "PIX Banco do Brasil"
 
 IMPORTANTE: 
 - Para o campo "valor", use sempre ponto como separador decimal (ex: 1062.60) e NÃO use vírgula.
 - Para o campo "nomePessoa", procure por "TOMADOR DO SERVIÇO" ou "DADOS DO TOMADOR" - esta é a pessoa/empresa que está PAGANDO.
 - NÃO use o "PRESTADOR DO SERVIÇO" - este é quem está RECEBENDO o pagamento.
 - Se houver um nome específico na discriminação do serviço, use esse nome.
+- Para "formaPagamento", procure por palavras como: PIX, PIX BB, PIX SICREDI, DINHEIRO, TRANSFERÊNCIA, BOLETO, etc.
+- IMPORTANTE: Substitua abreviações por nomes completos:
+  * "BB" → "Banco do Brasil"
+  * "SICREDI" → "SICREDI" (manter como está)
+  * "ITAU" → "Itaú"
+  * "BRADESCO" → "Bradesco"
+  * "SANTANDER" → "Santander"
+- Para "mesReferencia", procure por padrões como: "mês de [Mês] de [Ano]", "Mês: [Mês]/[Ano]", "referente ao mês de [Mês] de [Ano]"
 
 Retorne APENAS o JSON válido, sem explicações adicionais.
 `;
@@ -82,9 +112,13 @@ Retorne APENAS o JSON válido, sem explicações adicionais.
     const formattedData: ExtractedNFSEData = {
       numeroNFSE: extractedData.numeroNFSE || 'Não encontrado',
       dataPrestacao: extractedData.dataPrestacao || new Date().toLocaleDateString('pt-BR'),
+      dataEmissao: extractedData.dataEmissao || undefined,
       discriminacao: extractedData.discriminacao || 'Discriminação não encontrada',
       valor: parseFloat(extractedData.valor) || 0,
-      nomePessoa: extractedData.nomePessoa || 'Nome não encontrado'
+      nomePessoa: extractedData.nomePessoa || 'Nome não encontrado',
+      responsavelNome: extractedData.responsavelNome || undefined,
+      formaPagamento: extractedData.formaPagamento || undefined,
+      mesReferencia: extractedData.mesReferencia || undefined
     };
     
     console.log('✅ Dados extraídos com Gemini:', formattedData);
@@ -140,6 +174,8 @@ function generateFallbackData(file: File): ExtractedNFSEData {
   const valor = Math.round((file.size / 1000) * 50);
   const dataPrestacao = new Date().toLocaleDateString('pt-BR');
   
+  console.log('🔄 Fallback: dataPrestacao gerada:', dataPrestacao);
+  
   let nomePessoa = 'Nome não encontrado';
   if (fileName.includes('oli')) {
     nomePessoa = 'OLICIO DOS SANTOS';
@@ -149,13 +185,17 @@ function generateFallbackData(file: File): ExtractedNFSEData {
     nomePessoa = 'MARIA SILVA SANTOS';
   }
   
-  const discriminacao = 'Valor referente a participação no custeio da entidade. Referente ao mês de setembro de 2025. Conforme PIX BB.';
+  const discriminacao = 'Valor referente a participação no custeio da entidade. Referente ao mês de setembro de 2025. Conforme PIX Banco do Brasil.';
   
-  return {
-    numeroNFSE,
-    dataPrestacao,
-    discriminacao,
-    valor,
-    nomePessoa
-  };
+      return {
+        numeroNFSE,
+        dataPrestacao,
+        dataEmissao: dataPrestacao, // Usar mesma data como fallback
+        discriminacao,
+        valor,
+        nomePessoa,
+        responsavelNome: undefined, // Não há responsável no fallback
+        formaPagamento: 'PIX Banco do Brasil',
+        mesReferencia: '09/2025'
+      };
 }

@@ -5,6 +5,8 @@ import { setupResponsaveisHandlers } from './ipc-handlers/responsaveis.handler';
 import { setupPagamentosHandlers } from './ipc-handlers/pagamentos.handler';
 import { setupRecibosHandlers } from './ipc-handlers/recibos.handler';
 import { setupConfiguracoesHandlers } from './ipc-handlers/configuracoes.handler';
+import { setupNotasFiscaisHandlers } from './ipc-handlers/notas-fiscais.handler';
+import { setupTemplatesHandlers } from './ipc-handlers/templates.handler';
 
 // Garantir que apenas uma instância rode
 const gotTheLock = app.requestSingleInstanceLock();
@@ -53,6 +55,8 @@ if (!gotTheLock) {
     setupPagamentosHandlers();
     setupRecibosHandlers();
     setupConfiguracoesHandlers();
+    setupNotasFiscaisHandlers();
+    setupTemplatesHandlers();
 
     createWindow();
 

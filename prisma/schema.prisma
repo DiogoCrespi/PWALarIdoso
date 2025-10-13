@@ -34,6 +34,7 @@ model Idoso {
   responsavel          Responsavel  @relation(fields: [responsavelId], references: [id])
   valorMensalidadeBase Float
   pagamentos           Pagamento[]
+  notasFiscais         NotaFiscal[]
   ativo                Boolean      @default(true)
   observacoes          String?
   createdAt            DateTime     @default(now())
@@ -52,15 +53,41 @@ model Pagamento {
   valorPago            Float     @default(0)
   dataPagamento        DateTime?
   nfse                 String?   // Número da Nota Fiscal
+  pagador              String?   // Nome da pessoa/empresa que efetuou o pagamento
+  formaPagamento       String?   // Forma de pagamento (PIX, DINHEIRO, etc.)
   status               String    @default("PENDENTE") // PENDENTE, PARCIAL, PAGO
   valorDoacaoCalculado Float     @default(0)
   caminhoReciboDoacao  String?   // Caminho completo do arquivo DOCX gerado
   observacoes          String?
+  notasFiscais         NotaFiscal[]
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
   @@unique([idosoId, mesReferencia, anoReferencia])
   @@map("pagamentos")
+}
+
+// Tabela de Notas Fiscais
+model NotaFiscal {
+  id              Int       @id @default(autoincrement())
+  numeroNFSE      String?   // Número da NFSE (pode ser nulo se criada automaticamente)
+  dataPrestacao   DateTime? // Data da prestação de serviço
+  dataEmissao     DateTime? // Data de emissão da NFSE
+  discriminacao   String?   // Descrição do serviço
+  valor           Float?    // Valor da nota
+  nomePessoa      String?   // Nome da pessoa/empresa
+  idosoId         Int       // ID do idoso relacionado
+  idoso           Idoso     @relation(fields: [idosoId], references: [id])
+  mesReferencia   Int       // Mês de referência (1-12)
+  anoReferencia   Int       // Ano de referência
+  arquivoOriginal String?   // Caminho do arquivo original (se upload)
+  status          String    @default("RASCUNHO") // RASCUNHO, COMPLETA, PROCESSADA, CANCELADA
+  pagamentoId     Int?      // ID do pagamento relacionado (se houver)
+  pagamento       Pagamento? @relation(fields: [pagamentoId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("notas_fiscais")
 }
 
 // Tabela de Configurações do Sistema

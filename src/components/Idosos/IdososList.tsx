@@ -31,6 +31,7 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   Block as BlockIcon,
+  CheckCircle as CheckCircleIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
@@ -48,6 +49,7 @@ export default function IdososList({ onRefresh }: IdososListProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchByPagador, setSearchByPagador] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingIdoso, setEditingIdoso] = useState<Idoso | null>(null);
@@ -80,8 +82,33 @@ export default function IdososList({ onRefresh }: IdososListProps) {
     }
   };
 
+  const searchIdososByPagador = async (pagador: string) => {
+    if (!pagador.trim()) {
+      loadIdosos();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await window.electronAPI.idosos.getByPagador(pagador);
+      setIdosos(data);
+    } catch (err: any) {
+      console.error('Erro ao buscar idosos por pagador:', err);
+      setError(err.message || 'Erro ao buscar idosos por pagador');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+  };
+
+  const handleSearchByPagador = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearchByPagador(value);
+    searchIdososByPagador(value);
   };
 
   const handleAdd = () => {
@@ -101,6 +128,18 @@ export default function IdososList({ onRefresh }: IdososListProps) {
     setAnchorEl(null);
   };
 
+  const handleTrashClick = (idoso: Idoso) => {
+    if (idoso.ativo) {
+      // Primeira vez - desativar
+      handleDeactivate(idoso);
+    } else {
+      // Segunda vez - excluir permanentemente
+      setIdosoToDelete(idoso);
+      setDeleteDialogOpen(true);
+    }
+    setAnchorEl(null);
+  };
+
   const handleDeactivate = async (idoso: Idoso) => {
     try {
       await window.electronAPI.idosos.delete(idoso.id);
@@ -109,6 +148,17 @@ export default function IdososList({ onRefresh }: IdososListProps) {
     } catch (error) {
       console.error('Erro ao desativar idoso:', error);
       setError('Erro ao desativar idoso');
+    }
+  };
+
+  const handleActivate = async (idoso: Idoso) => {
+    try {
+      await window.electronAPI.idosos.activate(idoso.id);
+      await loadIdosos();
+      setAnchorEl(null);
+    } catch (error) {
+      console.error('Erro ao ativar idoso:', error);
+      setError('Erro ao ativar idoso');
     }
   };
 
@@ -161,11 +211,13 @@ export default function IdososList({ onRefresh }: IdososListProps) {
   };
 
   const filteredIdosos = idosos.filter(idoso => {
-    // Filtro por busca
-    const matchesSearch = idoso.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    // Filtro por busca (nome, CPF, responsável)
+    const matchesSearch = !searchTerm || (
+      idoso.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       idoso.responsavel?.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       idoso.cpf?.includes(searchTerm) ||
-      idoso.responsavel?.cpf.includes(searchTerm);
+      idoso.responsavel?.cpf.includes(searchTerm)
+    );
     
     // Filtro por status ativo/inativo
     const matchesStatus = showInactive || idoso.ativo;
@@ -215,21 +267,36 @@ export default function IdososList({ onRefresh }: IdososListProps) {
         </Box>
       </Box>
 
-      {/* Campo de busca */}
-      <TextField
-        fullWidth
-        placeholder="Buscar por nome, CPF ou responsável..."
-        value={searchTerm}
-        onChange={handleSearch}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mb: 3 }}
-      />
+      {/* Campos de busca */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <TextField
+          fullWidth
+          placeholder="Buscar por nome, CPF ou responsável..."
+          value={searchTerm}
+          onChange={handleSearch}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <TextField
+          fullWidth
+          placeholder="Buscar por pagador..."
+          value={searchByPagador}
+          onChange={handleSearchByPagador}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+          helperText="Digite o nome de quem efetuou pagamentos"
+        />
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -242,10 +309,10 @@ export default function IdososList({ onRefresh }: IdososListProps) {
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              {searchTerm ? 'Nenhum idoso encontrado' : 'Nenhum idoso cadastrado'}
+              {searchTerm || searchByPagador ? 'Nenhum idoso encontrado' : 'Nenhum idoso cadastrado'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {searchTerm ? 'Tente ajustar os termos de busca' : 'Clique em "Novo Idoso" para começar'}
+              {searchTerm || searchByPagador ? 'Tente ajustar os termos de busca' : 'Clique em "Novo Idoso" para começar'}
             </Typography>
           </CardContent>
         </Card>
@@ -313,6 +380,29 @@ export default function IdososList({ onRefresh }: IdososListProps) {
                     )}
                   </Box>
 
+                  {/* Informações do último pagamento (quando busca por pagador) */}
+                  {searchByPagador && (idoso as any).ultimoPagamento && (
+                    <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        Último Pagamento
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Pagador:</strong> {(idoso as any).ultimoPagamento.pagador}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Valor:</strong> {formatCurrency((idoso as any).ultimoPagamento.valorPago)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Forma:</strong> {(idoso as any).ultimoPagamento.formaPagamento || 'Não informado'}
+                      </Typography>
+                      {(idoso as any).ultimoPagamento.dataPagamento && (
+                        <Typography variant="body2" color="text.secondary">
+                          <strong>Data:</strong> {format(new Date((idoso as any).ultimoPagamento.dataPagamento), 'dd/MM/yyyy', { locale: ptBR })}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+
                   {/* Status */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -353,19 +443,26 @@ export default function IdososList({ onRefresh }: IdososListProps) {
           </ListItemIcon>
           <ListItemText>Editar</ListItemText>
         </MenuItem>
-        {selectedIdoso?.ativo && (
+        {selectedIdoso?.ativo ? (
           <MenuItem onClick={() => handleDeactivate(selectedIdoso!)} sx={{ color: 'warning.main' }}>
             <ListItemIcon>
               <BlockIcon fontSize="small" color="warning" />
             </ListItemIcon>
             <ListItemText>Desativar</ListItemText>
           </MenuItem>
+        ) : (
+          <MenuItem onClick={() => handleActivate(selectedIdoso!)} sx={{ color: 'success.main' }}>
+            <ListItemIcon>
+              <CheckCircleIcon fontSize="small" color="success" />
+            </ListItemIcon>
+            <ListItemText>Ativar</ListItemText>
+          </MenuItem>
         )}
-        <MenuItem onClick={() => handleDelete(selectedIdoso!)} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={() => handleTrashClick(selectedIdoso!)} sx={{ color: 'warning.main' }}>
           <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
+            <DeleteIcon fontSize="small" color="warning" />
           </ListItemIcon>
-          <ListItemText>Excluir</ListItemText>
+          <ListItemText>{selectedIdoso?.ativo ? 'Desativar' : 'Excluir Permanentemente'}</ListItemText>
         </MenuItem>
       </Menu>
 

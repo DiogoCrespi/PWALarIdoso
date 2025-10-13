@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Select, MenuItem, FormControl, InputLabel, CircularProgress, Alert, Snackbar } from '@mui/material';
+import { Box, Typography, Paper, Select, MenuItem, FormControl, InputLabel, CircularProgress, Alert, Snackbar, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import DashboardGrid from '../components/Dashboard/DashboardGrid';
 import PaymentModal from '../components/Dashboard/PaymentModal';
 import type { DashboardData, Idoso } from '../electron.d';
@@ -17,6 +18,11 @@ export default function DashboardPage() {
   const [selectedPagamento, setSelectedPagamento] = useState<any>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  
+  // Estados para modal de novo pagamento
+  const [novoPagamentoOpen, setNovoPagamentoOpen] = useState(false);
+  const [idosoSelecionado, setIdosoSelecionado] = useState<Idoso | null>(null);
+  const [mesSelecionado, setMesSelecionado] = useState<number>(new Date().getMonth() + 1);
 
   // Gerar lista de anos (5 anos atrás até 2 anos à frente)
   const anoAtual = new Date().getFullYear();
@@ -96,6 +102,24 @@ export default function DashboardPage() {
     setSelectedPagamento(null);
   };
 
+  const handleNovoPagamento = () => {
+    setNovoPagamentoOpen(true);
+  };
+
+  const handleSelecionarIdoso = (idoso: Idoso) => {
+    setIdosoSelecionado(idoso);
+    setNovoPagamentoOpen(false);
+    setModalOpen(true);
+    setSelectedIdoso(idoso);
+    setSelectedMes(mesSelecionado);
+    setSelectedPagamento(null);
+  };
+
+  const handleCloseNovoPagamento = () => {
+    setNovoPagamentoOpen(false);
+    setIdosoSelecionado(null);
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -103,20 +127,31 @@ export default function DashboardPage() {
           Dashboard de Pagamentos
         </Typography>
         
-        <FormControl sx={{ minWidth: 120 }}>
-          <InputLabel>Ano</InputLabel>
-          <Select
-            value={ano}
-            label="Ano"
-            onChange={(e) => setAno(Number(e.target.value))}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleNovoPagamento}
+            sx={{ mr: 2 }}
           >
-            {anos.map((a) => (
-              <MenuItem key={a} value={a}>
-                {a}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            Novo Pagamento
+          </Button>
+          
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel>Ano</InputLabel>
+            <Select
+              value={ano}
+              label="Ano"
+              onChange={(e) => setAno(Number(e.target.value))}
+            >
+              {anos.map((a) => (
+                <MenuItem key={a} value={a}>
+                  {a}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {error && (
@@ -171,6 +206,87 @@ export default function DashboardPage() {
         onSave={handleSavePayment}
         onGerarRecibo={handleGerarRecibo}
       />
+
+      {/* Modal de Seleção de Idoso para Novo Pagamento */}
+      <Dialog
+        open={novoPagamentoOpen}
+        onClose={handleCloseNovoPagamento}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">
+            Selecionar Idoso para Novo Pagamento
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Escolha o idoso e o mês para criar um novo pagamento
+          </Typography>
+        </DialogTitle>
+        
+        <DialogContent>
+          {dashboardData && (
+            <Box>
+              <Box sx={{ mb: 3 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Mês</InputLabel>
+                  <Select
+                    value={mesSelecionado}
+                    label="Mês"
+                    onChange={(e) => setMesSelecionado(Number(e.target.value))}
+                  >
+                    {[
+                      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                    ].map((mes, index) => (
+                      <MenuItem key={index + 1} value={index + 1}>
+                        {mes}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 2 }}>
+                {dashboardData.idosos.map((idoso) => (
+                  <Paper
+                    key={idoso.id}
+                    sx={{
+                      p: 2,
+                      cursor: 'pointer',
+                      border: '1px solid',
+                      borderColor: 'grey.300',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        backgroundColor: 'action.hover'
+                      }
+                    }}
+                    onClick={() => handleSelecionarIdoso(idoso)}
+                  >
+                    <Typography variant="h6" gutterBottom>
+                      {idoso.nome}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>CPF:</strong> {idoso.cpf}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Mensalidade:</strong> R$ {idoso.valorMensalidadeBase.toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Responsável:</strong> {idoso.responsavel?.nome}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          <Button onClick={handleCloseNovoPagamento}>
+            Cancelar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar para feedback */}
       <Snackbar
