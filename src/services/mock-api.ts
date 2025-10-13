@@ -69,11 +69,269 @@ const saveNotasFiscaisMock = (data: any[]) => {
   saveToStorage('notasFiscaisMock', data);
 };
 
+// Função para importar responsável automaticamente
+const importarResponsavelAutomatico = (nomeResponsavel: string, cpfResponsavel?: string) => {
+  const responsaveisMock = getResponsaveisMock();
+  
+  // Verificar se já existe responsável com esse nome
+  let responsavelExistente = responsaveisMock.find((r: any) => 
+    r.nome.toLowerCase() === nomeResponsavel.toLowerCase()
+  );
+  
+  if (!responsavelExistente) {
+    // Criar novo responsável
+    const novoResponsavel = {
+      id: Date.now(),
+      nome: nomeResponsavel,
+      cpf: cpfResponsavel || '',
+      contatoTelefone: '',
+      contatoEmail: '',
+      idosos: [],
+      ativo: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    responsaveisMock.push(novoResponsavel);
+    saveResponsaveisMock(responsaveisMock);
+    
+    console.log('✅ Responsável importado automaticamente:', novoResponsavel);
+    return novoResponsavel;
+  }
+  
+  return responsavelExistente;
+};
+
+// Função para importar idoso automaticamente
+const importarIdosoAutomatico = (nomeIdoso: string, cpfIdoso?: string, responsavelId?: number) => {
+  const idososMock = getIdososMock();
+  
+  // Verificar se já existe idoso com esse nome
+  let idosoExistente = idososMock.find((i: any) => 
+    i.nome.toLowerCase() === nomeIdoso.toLowerCase()
+  );
+  
+  if (!idosoExistente) {
+    // Criar novo idoso
+    const novoIdoso = {
+      id: Date.now(),
+      nome: nomeIdoso,
+      cpf: cpfIdoso || '',
+      dataNascimento: '',
+      valorMensalidadeBase: 1500, // Valor padrão
+      tipo: 'REGULAR',
+      ativo: true,
+      responsavelId: responsavelId || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    idososMock.push(novoIdoso);
+    saveIdososMock(idososMock);
+    
+    console.log('✅ Idoso importado automaticamente:', novoIdoso);
+    return novoIdoso;
+  }
+  
+  return idosoExistente;
+};
+
+// Função para importar dados automaticamente de um CSV
+const importarDadosDoCSV = (csvContent: string) => {
+  const lines = csvContent.split('\n');
+  
+  let responsaveisImportados = 0;
+  let idososImportados = 0;
+  let pagamentosImportados = 0;
+  let notasFiscaisImportadas = 0;
+  let configuracoesImportadas = 0;
+  
+  // Processar cada linha do CSV
+  lines.slice(1).forEach(line => {
+    if (line.trim()) {
+      const columns = line.split(',');
+      const tipo = columns[0].replace(/['\"]/g, '');
+      
+      try {
+        switch (tipo) {
+          case 'RESPONSAVEL':
+            const responsavelData = {
+              id: parseInt(columns[1]),
+              nome: columns[2].replace(/['\"]/g, ''),
+              cpf: columns[3].replace(/['\"]/g, ''),
+              contatoTelefone: columns[4].replace(/['\"]/g, ''),
+              contatoEmail: columns[5].replace(/['\"]/g, ''),
+              ativo: columns[9].replace(/['\"]/g, '') === 'ATIVO',
+              createdAt: columns[25].replace(/['\"]/g, ''),
+              updatedAt: columns[26].replace(/['\"]/g, '')
+            };
+            
+            const responsaveisMock = getResponsaveisMock();
+            const responsavelExistente = responsaveisMock.find((r: any) => r.id === responsavelData.id);
+            
+            if (!responsavelExistente) {
+              responsaveisMock.push(responsavelData);
+              saveResponsaveisMock(responsaveisMock);
+              responsaveisImportados++;
+            }
+            break;
+            
+          case 'IDOSO':
+            const idosoData = {
+              id: parseInt(columns[1]),
+              nome: columns[2].replace(/['\"]/g, ''),
+              cpf: columns[3].replace(/['\"]/g, ''),
+              dataNascimento: columns[6].replace(/['\"]/g, ''),
+              valorMensalidadeBase: parseFloat(columns[7].replace(/['\"]/g, '')) || 1500,
+              tipo: columns[8].replace(/['\"]/g, '') || 'REGULAR',
+              ativo: columns[9].replace(/['\"]/g, '') === 'ATIVO',
+              responsavelId: parseInt(columns[10]) || null,
+              createdAt: columns[25].replace(/['\"]/g, ''),
+              updatedAt: columns[26].replace(/['\"]/g, '')
+            };
+            
+            const idososMock = getIdososMock();
+            const idosoExistente = idososMock.find((i: any) => i.id === idosoData.id);
+            
+            if (!idosoExistente) {
+              idososMock.push(idosoData);
+              saveIdososMock(idososMock);
+              idososImportados++;
+            }
+            break;
+            
+          case 'PAGAMENTO':
+            const pagamentoData = {
+              id: parseInt(columns[1]),
+              idosoId: parseInt(columns[10]) || null,
+              mesReferencia: parseInt(columns[18]) || 1,
+              anoReferencia: parseInt(columns[19]) || 2025,
+              valorPago: parseFloat(columns[14].replace(/['\"]/g, '')) || 0,
+              dataPagamento: columns[17].replace(/['\"]/g, ''),
+              nfse: columns[15].replace(/['\"]/g, ''),
+              pagador: columns[16].replace(/['\"]/g, ''),
+              formaPagamento: columns[17].replace(/['\"]/g, ''),
+              status: columns[13].replace(/['\"]/g, '') || 'PENDENTE',
+              valorDoacaoCalculado: parseFloat(columns[20].replace(/['\"]/g, '')) || 0,
+              valorBeneficio: parseFloat(columns[21].replace(/['\"]/g, '')) || 0,
+              percentualBeneficio: parseFloat(columns[22].replace(/['\"]/g, '')) || 70,
+              totalBeneficioAplicado: parseFloat(columns[23].replace(/['\"]/g, '')) || 0,
+              observacoes: columns[24].replace(/['\"]/g, ''),
+              createdAt: columns[25].replace(/['\"]/g, ''),
+              updatedAt: columns[26].replace(/['\"]/g, '')
+            };
+            
+            const pagamentosMock = getPagamentosMock();
+            const pagamentoExistente = pagamentosMock.find((p: any) => p.id === pagamentoData.id);
+            
+            if (!pagamentoExistente) {
+              pagamentosMock.push(pagamentoData);
+              savePagamentosMock(pagamentosMock);
+              pagamentosImportados++;
+            }
+            break;
+            
+          case 'NOTA_FISCAL':
+            const notaData = {
+              id: parseInt(columns[1]),
+              nomePessoa: columns[2].replace(/['\"]/g, ''),
+              valor: parseFloat(columns[14].replace(/['\"]/g, '')) || 0,
+              numeroNFSE: columns[15].replace(/['\"]/g, ''),
+              dataPrestacao: columns[17].replace(/['\"]/g, ''),
+              discriminacao: columns[24].replace(/['\"]/g, ''),
+              dataUpload: columns[25].replace(/['\"]/g, '')
+            };
+            
+            const notasMock = getNotasFiscaisMock();
+            const notaExistente = notasMock.find((n: any) => n.id === notaData.id);
+            
+            if (!notaExistente) {
+              notasMock.push(notaData);
+              saveNotasFiscaisMock(notasMock);
+              notasFiscaisImportadas++;
+            }
+            break;
+            
+          case 'CONFIGURACAO':
+            // As configurações são hardcoded, então não precisamos importar
+            configuracoesImportadas++;
+            break;
+        }
+      } catch (error) {
+        console.error('Erro ao processar linha do CSV:', line, error);
+      }
+    }
+  });
+  
+  return {
+    responsaveisImportados,
+    idososImportados,
+    pagamentosImportados,
+    notasFiscaisImportadas,
+    configuracoesImportadas
+  };
+};
+
 // Função para limpar todas as NFSEs (para teste)
 const clearNotasFiscaisMock = () => {
   console.log('🗑️ Limpando todas as NFSEs...');
   saveToStorage('notasFiscaisMock', []);
   console.log('✅ Todas as NFSEs foram removidas');
+};
+
+// Função para limpar TODOS os dados do sistema
+const limparTodosOsDados = () => {
+  console.log('🗑️ Limpando TODOS os dados do sistema...');
+  
+  // Limpar todos os dados
+  saveToStorage('responsaveisMock', []);
+  saveToStorage('idososMock', []);
+  saveToStorage('pagamentosMock', []);
+  saveToStorage('notasFiscaisMock', []);
+  
+  console.log('✅ Todos os dados foram removidos');
+  return {
+    success: true,
+    message: 'Todos os dados foram limpos com sucesso'
+  };
+};
+
+// Função para inicializar o sistema com dados do CSV existente
+const inicializarSistemaComDadosExistentes = async () => {
+  try {
+    // Verificar se já há dados no sistema
+    const responsaveis = getResponsaveisMock();
+    const idosos = getIdososMock();
+    const pagamentos = getPagamentosMock();
+    
+    // Se já há dados, não inicializar
+    if (responsaveis.length > 0 || idosos.length > 0 || pagamentos.length > 0) {
+      console.log('✅ Sistema já possui dados, não inicializando');
+      return;
+    }
+    
+    console.log('🔄 Inicializando sistema com dados existentes...');
+    
+    // Tentar carregar dados do CSV existente
+    try {
+      const response = await fetch('/backup_lar_idosos_2025-10-13.csv');
+      if (response.ok) {
+        const csvContent = await response.text();
+        const resultado = importarDadosDoCSV(csvContent);
+        
+        console.log('✅ Sistema inicializado com dados do CSV:', resultado);
+        logInfo('MOCK_API', 'Dados importados na inicialização', resultado);
+      } else {
+        console.log('⚠️ Arquivo CSV não encontrado, sistema iniciado sem dados');
+        logInfo('MOCK_API', 'Arquivo CSV não encontrado na inicialização');
+      }
+    } catch (error) {
+      console.log('⚠️ Erro ao carregar CSV, sistema iniciado sem dados:', error);
+      logError('MOCK_API', 'Erro ao carregar CSV na inicialização', error instanceof Error ? error.message : String(error));
+    }
+  } catch (error) {
+    console.error('❌ Erro ao inicializar sistema:', error);
+  }
 };
 
 // Função global para limpar dados (disponível no console)
@@ -566,8 +824,22 @@ export const mockElectronAPI = {
       const idososMock = getIdososMock();
       const pagamentosMock = getPagamentosMock();
       
+      // Importar responsável automaticamente se fornecido
+      let responsavelId = data.responsavelId;
+      if (data.pagador && !responsavelId) {
+        const responsavel = importarResponsavelAutomatico(data.pagador);
+        responsavelId = responsavel.id;
+      }
+      
+      // Importar idoso automaticamente se fornecido
+      let idosoId = data.idosoId;
+      if (data.nomeIdoso && !idosoId) {
+        const idoso = importarIdosoAutomatico(data.nomeIdoso, data.cpfIdoso, responsavelId);
+        idosoId = idoso.id;
+      }
+      
       // Buscar idoso para calcular status
-      const idoso = idososMock.find((i: any) => i.id === data.idosoId);
+      const idoso = idososMock.find((i: any) => i.id === idosoId);
       const valorBase = idoso?.valorMensalidadeBase || 2500;
       const valorPago = data.valorPago || 0;
       const tipoIdoso = idoso?.tipo || 'REGULAR';
@@ -599,7 +871,7 @@ export const mockElectronAPI = {
       
       // Verificar se já existe pagamento para este idoso/mês/ano
       const pagamentoExistente = pagamentosMock.find((p: any) => 
-        p.idosoId === data.idosoId && 
+        p.idosoId === idosoId && 
         p.mesReferencia === data.mesReferencia && 
         p.anoReferencia === data.anoReferencia
       );
@@ -629,7 +901,7 @@ export const mockElectronAPI = {
         // Criar novo pagamento
         const novoPagamento = {
           id: Date.now(),
-          idosoId: data.idosoId,
+          idosoId: idosoId,
           mesReferencia: data.mesReferencia,
           anoReferencia: data.anoReferencia,
           valorPago,
@@ -890,56 +1162,16 @@ export const mockElectronAPI = {
             idosoId = idoso.id;
             console.log('👤 Mock API: Idoso similar encontrado:', idoso.nome);
           } else {
-            // Criar novo idoso
+            // Importar responsável automaticamente se fornecido
             let responsavelId = null;
-          
-          if (data.responsavelNome) {
-            // Buscar responsável existente
-            let responsavel = responsaveis.find((r: any) => 
-              r.nome.toLowerCase().includes(data.responsavelNome.toLowerCase())
-            );
-            
-            if (responsavel) {
+            if (data.responsavelNome) {
+              const responsavel = importarResponsavelAutomatico(data.responsavelNome, data.responsavelCpf);
               responsavelId = responsavel.id;
-            } else {
-              // Criar novo responsável
-              const novoResponsavel = {
-                id: responsaveis.length + 1,
-                nome: data.responsavelNome,
-                cpf: data.responsavelCpf || '',
-                contatoTelefone: '',
-                contatoEmail: '',
-                endereco: '',
-                ativo: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              };
-              responsaveis.push(novoResponsavel);
-              saveResponsaveisMock(responsaveis);
-              responsavelId = novoResponsavel.id;
             }
-          }
-          
-          // Criar novo idoso
-          const novoIdoso = {
-            id: idosos.length + 1,
-            nome: data.nomePessoa,
-            cpf: '',
-            dataNascimento: null,
-            responsavelId: responsavelId,
-            valorMensalidadeBase: 2500,
-            tipo: 'REGULAR',
-            observacoes: 'Idoso criado automaticamente via NFSE',
-            ativo: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          
-            idosos.push(novoIdoso);
-            saveIdososMock(idosos);
-            idosoId = novoIdoso.id;
-            idoso = novoIdoso;
-            console.log('👤 Mock API: Novo idoso criado:', novoIdoso.nome);
+            
+            // Importar idoso automaticamente
+            idoso = importarIdosoAutomatico(data.nomePessoa, data.cpfPessoa, responsavelId);
+            idosoId = idoso.id;
           }
         }
       }
@@ -1126,6 +1358,69 @@ export const mockElectronAPI = {
     }
   },
   backup: {
+    limparTodosOsDados: async () => {
+      logInfo('MOCK_API', 'Limpando todos os dados do sistema');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        const resultado = limparTodosOsDados();
+        logInfo('MOCK_API', 'Dados limpos com sucesso');
+        return resultado;
+      } catch (error) {
+        logError('MOCK_API', 'Erro ao limpar dados', error instanceof Error ? error.message : String(error));
+        return {
+          success: false,
+          message: 'Erro ao limpar dados',
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    },
+    
+    inicializarSistema: async () => {
+      logInfo('MOCK_API', 'Inicializando sistema com dados existentes');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        await inicializarSistemaComDadosExistentes();
+        
+        return {
+          success: true,
+          message: 'Sistema inicializado com sucesso'
+        };
+      } catch (error) {
+        logError('MOCK_API', 'Erro ao inicializar sistema', error instanceof Error ? error.message : String(error));
+        return {
+          success: false,
+          message: 'Erro ao inicializar sistema',
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    },
+    
+    importarDadosDoCSV: async (csvContent: string) => {
+      logInfo('MOCK_API', 'Iniciando importação de dados do CSV');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      try {
+        const resultado = importarDadosDoCSV(csvContent);
+        
+        logInfo('MOCK_API', 'Importação de dados do CSV concluída', resultado);
+        
+        return {
+          success: true,
+          message: 'Dados importados com sucesso',
+          ...resultado
+        };
+      } catch (error) {
+        logError('MOCK_API', 'Erro ao importar dados do CSV', error instanceof Error ? error.message : String(error));
+        return {
+          success: false,
+          message: 'Erro ao importar dados do CSV',
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    },
+    
     gerarCSV: async () => {
       logInfo('MOCK_API', 'Iniciando geração de backup CSV');
       await new Promise(resolve => setTimeout(resolve, 1000));

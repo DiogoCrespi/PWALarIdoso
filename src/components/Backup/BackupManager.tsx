@@ -39,7 +39,8 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   Schedule as ScheduleIcon,
-  Storage as StorageIcon
+  Storage as StorageIcon,
+  CloudDownload as CloudDownloadIcon
 } from '@mui/icons-material';
 
 interface BackupInfo {
@@ -155,6 +156,107 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
     }
   };
 
+  const handleImportarDadosExistentes = async () => {
+    setLoading(true);
+    try {
+      console.log('🔄 Importando dados do CSV existente...');
+      
+      // Ler o arquivo CSV existente
+      const response = await fetch('/backup_lar_idosos_2025-10-13.csv');
+      const csvContent = await response.text();
+      
+      // Importar dados do CSV
+      const resultado = await window.electronAPI.backup.importarDadosDoCSV(csvContent);
+      
+      if (resultado.success) {
+        showSnackbar(
+          `Dados importados com sucesso! Responsáveis: ${resultado.responsaveisImportados}, Idosos: ${resultado.idososImportados}, Pagamentos: ${resultado.pagamentosImportados}, Notas Fiscais: ${resultado.notasFiscaisImportadas}`,
+          'success'
+        );
+        
+        // Recarregar a página para aplicar as mudanças
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        showSnackbar(`Erro ao importar dados: ${resultado.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao importar dados:', error);
+      showSnackbar('Erro ao importar dados do CSV', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInicializarSistema = async () => {
+    setLoading(true);
+    try {
+      console.log('🔄 Inicializando sistema...');
+      
+      // Inicializar sistema
+      const resultado = await window.electronAPI.backup.inicializarSistema();
+      
+      if (resultado.success) {
+        showSnackbar('Sistema inicializado com sucesso!', 'success');
+        
+        // Recarregar a página para aplicar as mudanças
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        showSnackbar(`Erro ao inicializar sistema: ${resultado.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao inicializar sistema:', error);
+      showSnackbar('Erro ao inicializar sistema', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLimparEImportar = async () => {
+    setLoading(true);
+    try {
+      console.log('🗑️ Limpando todos os dados...');
+      
+      // Primeiro, limpar todos os dados
+      const resultadoLimpeza = await window.electronAPI.backup.limparTodosOsDados();
+      
+      if (!resultadoLimpeza.success) {
+        showSnackbar(`Erro ao limpar dados: ${resultadoLimpeza.message}`, 'error');
+        return;
+      }
+      
+      console.log('✅ Dados limpos, importando do CSV...');
+      
+      // Depois, importar dados do CSV
+      const response = await fetch('/backup_lar_idosos_2025-10-13.csv');
+      const csvContent = await response.text();
+      
+      const resultadoImportacao = await window.electronAPI.backup.importarDadosDoCSV(csvContent);
+      
+      if (resultadoImportacao.success) {
+        showSnackbar(
+          `Sistema reinicializado! Responsáveis: ${resultadoImportacao.responsaveisImportados}, Idosos: ${resultadoImportacao.idososImportados}, Pagamentos: ${resultadoImportacao.pagamentosImportados}, Notas Fiscais: ${resultadoImportacao.notasFiscaisImportadas}`,
+          'success'
+        );
+        
+        // Recarregar a página para aplicar as mudanças
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        showSnackbar(`Erro ao importar dados: ${resultadoImportacao.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao limpar e importar:', error);
+      showSnackbar('Erro ao limpar e importar dados', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const downloadBackup = (backup: BackupInfo) => {
     try {
       const blob = new Blob([backup.content], { type: 'text/csv;charset=utf-8;' });
@@ -181,50 +283,23 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
     try {
       console.log('🔄 Iniciando restauração do backup:', backup.fileName);
       
-      // Parse do CSV e restauração dos dados
-      const lines = backup.content.split('\n');
-      const headers = lines[0].split(',');
+      // Importar dados do CSV usando a API
+      const resultado = await window.electronAPI.backup.importarDadosDoCSV(backup.content);
       
-      // Limpar dados existentes
-      localStorage.removeItem('responsaveisMock');
-      localStorage.removeItem('idososMock');
-      localStorage.removeItem('pagamentosMock');
-      localStorage.removeItem('notasFiscaisMock');
-      
-      // Processar cada linha do CSV
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      if (resultado.success) {
+        showSnackbar(
+          `Backup restaurado com sucesso! Responsáveis: ${resultado.responsaveisImportados}, Idosos: ${resultado.idososImportados}, Pagamentos: ${resultado.pagamentosImportados}, Notas Fiscais: ${resultado.notasFiscaisImportadas}`,
+          'success'
+        );
+        setRestoreDialog({ open: false, backup: null });
         
-        const values = line.split(',');
-        const tipo = values[0];
-        
-        switch (tipo) {
-          case 'RESPONSAVEL':
-            // Implementar restauração de responsáveis
-            break;
-          case 'IDOSO':
-            // Implementar restauração de idosos
-            break;
-          case 'PAGAMENTO':
-            // Implementar restauração de pagamentos
-            break;
-          case 'NOTA_FISCAL':
-            // Implementar restauração de notas fiscais
-            break;
-          case 'CONFIGURACAO':
-            // Implementar restauração de configurações
-            break;
-        }
+        // Recarregar a página para aplicar as mudanças
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        showSnackbar(`Erro ao restaurar backup: ${resultado.message}`, 'error');
       }
-      
-      showSnackbar('Backup restaurado com sucesso!', 'success');
-      setRestoreDialog({ open: false, backup: null });
-      
-      // Recarregar a página para aplicar as mudanças
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
       
     } catch (error) {
       console.error('❌ Erro ao restaurar backup:', error);
@@ -357,6 +432,33 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
                   disabled={loading}
                 >
                   Importar Backup
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<CloudDownloadIcon />}
+                  onClick={handleImportarDadosExistentes}
+                  disabled={loading}
+                  color="secondary"
+                >
+                  Importar Dados Existentes
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<StorageIcon />}
+                  onClick={handleInicializarSistema}
+                  disabled={loading}
+                  color="info"
+                >
+                  Inicializar Sistema
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleLimparEImportar}
+                  disabled={loading}
+                  color="warning"
+                >
+                  Limpar e Importar
                 </Button>
                 {onClose && (
                   <Button

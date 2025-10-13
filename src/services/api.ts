@@ -202,6 +202,36 @@ export const api = {
 
   // Backup
   backup: {
+    limparTodosOsDados: async () => {
+      if (isElectron()) {
+        console.log('🔌 Limpando dados via Electron');
+        return await window.electronAPI.backup.limparTodosOsDados();
+      } else {
+        console.log('🎭 Limpando dados via mock');
+        return await mockElectronAPI.backup.limparTodosOsDados();
+      }
+    },
+    
+    inicializarSistema: async () => {
+      if (isElectron()) {
+        console.log('🔌 Inicializando sistema via Electron');
+        return await window.electronAPI.backup.inicializarSistema();
+      } else {
+        console.log('🎭 Inicializando sistema via mock');
+        return await mockElectronAPI.backup.inicializarSistema();
+      }
+    },
+    
+    importarDadosDoCSV: async (csvContent: string) => {
+      if (isElectron()) {
+        console.log('🔌 Importando dados via Electron');
+        return await window.electronAPI.backup.importarDadosDoCSV(csvContent);
+      } else {
+        console.log('🎭 Importando dados via mock');
+        return await mockElectronAPI.backup.importarDadosDoCSV(csvContent);
+      }
+    },
+    
     gerarCSV: async () => {
       if (isElectron()) {
         console.log('🔌 Gerando backup real via Electron');
