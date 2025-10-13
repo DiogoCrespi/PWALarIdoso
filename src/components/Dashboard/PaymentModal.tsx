@@ -31,6 +31,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useDropzone } from 'react-dropzone';
 import { extractNFSEWithFallback } from '../../utils/geminiExtractor';
 import { isGeminiConfigured, getGeminiApiKey } from '../../config/gemini';
+import { logInfo, logError, logWarn } from '../../utils/logger';
 import type { Idoso } from '../../electron.d';
 
 interface PaymentModalProps {
@@ -367,12 +368,25 @@ export default function PaymentModal({
 
   const handleSave = async () => {
     try {
+      logInfo('PAYMENT_MODAL', 'Iniciando salvamento de pagamento', { 
+        idosoId: idoso?.id, 
+        idosoNome: idoso?.nome,
+        idosoTipo: idoso?.tipo,
+        valorPago: formData.valorPago,
+        mesReferencia: mes,
+        anoReferencia: ano
+      });
+      
       setLoading(true);
       setError(null);
 
       // Validações
       if (!formData.valorPago || parseFloat(formData.valorPago) < 0) {
         const errorMsg = 'Valor deve ser maior ou igual a zero';
+        logError('PAYMENT_MODAL', 'Validação falhou: valor inválido', { 
+          valorPago: formData.valorPago,
+          idosoId: idoso?.id 
+        });
         showSnackbar(errorMsg, 'error');
         throw new Error(errorMsg);
       }
@@ -392,10 +406,21 @@ export default function PaymentModal({
       console.log('⚠️ Validação 70% - limite:', valorMaximo, 'valor pago:', valorPago);
       if (valorPago > valorMaximo) {
         const errorMsg = `Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`;
+        logWarn('PAYMENT_MODAL', 'Validação falhou: valor excede 70% do salário', { 
+          valorPago,
+          valorMaximo,
+          idosoId: idoso.id,
+          idosoTipo: idoso.tipo
+        });
         showSnackbar(errorMsg, 'error');
         throw new Error(errorMsg);
       }
 
+      // Calcular valores de benefício
+      const valorBeneficio = idoso.valorMensalidadeBase;
+      const percentualBeneficio = 70; // Percentual padrão
+      const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+      
       const dataToSave = {
         idosoId: idoso.id,
         mesReferencia: mes,
@@ -408,10 +433,26 @@ export default function PaymentModal({
         observacoes: formData.discriminacao || null, // Usar discriminacao como observacoes
         dataEmissao: formData.dataEmissao || null,
         discriminacao: formData.discriminacao || null,
+        // Novos campos de cálculo de benefício
+        valorBeneficio,
+        percentualBeneficio,
+        totalBeneficioAplicado,
       };
 
       await onSave(dataToSave);
       setSuccess(true);
+      
+      logInfo('PAYMENT_MODAL', 'Pagamento salvo com sucesso', { 
+        idosoId: idoso.id,
+        valorPago,
+        valorBeneficio,
+        percentualBeneficio,
+        totalBeneficioAplicado,
+        valorDoacao: Math.max(0, valorPago - totalBeneficioAplicado),
+        mesReferencia: mes,
+        anoReferencia: ano
+      });
+      
       showSnackbar(pagamentoExistente ? 'Pagamento atualizado com sucesso!' : 'Pagamento salvo com sucesso!', 'success');
       
       // Fechar modal após 3 segundos para dar tempo de ver o feedback
@@ -422,6 +463,11 @@ export default function PaymentModal({
 
     } catch (err: any) {
       const errorMsg = err.message || 'Erro ao salvar pagamento';
+      logError('PAYMENT_MODAL', 'Erro ao salvar pagamento', { 
+        error: errorMsg,
+        idosoId: idoso?.id,
+        valorPago: formData.valorPago
+      });
       setError(errorMsg);
       showSnackbar(errorMsg, 'error');
     } finally {
@@ -452,7 +498,13 @@ export default function PaymentModal({
 
   const valorBase = idoso?.valorMensalidadeBase || 0;
   const valorPago = parseFloat(formData.valorPago) || 0;
-  const valorDoacao = Math.max(0, valorPago - valorBase);
+  
+  // Cálculos estruturados de benefício
+  const valorBeneficio = valorBase;
+  const percentualBeneficio = 70; // Percentual padrão
+  const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+  const valorDoacao = Math.max(0, valorPago - totalBeneficioAplicado);
+  
   const status = valorPago >= valorBase ? 'PAGO' : valorPago > 0 ? 'PARCIAL' : 'PENDENTE';
 
   const getStatusColor = (status: string) => {
@@ -581,18 +633,29 @@ export default function PaymentModal({
                   </Box>
                 )}
 
-                {/* Cálculo de Doação */}
+                {/* Cálculos Estruturados de Benefício */}
                 {formData.valorPago && (
-                  <Box sx={{ mb: 2 }}>
-                    {(() => {
-                      const valorPago = normalizeValue(formData.valorPago);
-                      const valorDoacao = Math.max(0, valorPago - (valorBase * 0.7));
-                      return (
-                        <Typography variant="body2">
-                          <strong>Doação:</strong> R$ {valorDoacao.toFixed(2)}
-                        </Typography>
-                      );
-                    })()}
+                  <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: 'primary.main', fontWeight: 'bold' }}>
+                      Detalhes do Cálculo:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography variant="body2">
+                        <strong>Valor Base do Benefício:</strong> R$ {valorBeneficio.toFixed(2)}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Percentual Aplicado:</strong> {percentualBeneficio}%
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Total do Benefício:</strong> R$ {totalBeneficioAplicado.toFixed(2)}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Valor Pago:</strong> R$ {valorPago.toFixed(2)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                        <strong>Doação Calculada:</strong> R$ {valorDoacao.toFixed(2)}
+                      </Typography>
+                    </Box>
                   </Box>
                 )}
               </Box>

@@ -211,7 +211,7 @@ const ResponsaveisList: React.FC<ResponsaveisListProps> = ({ onRefresh }) => {
     if (!selectedResponsavel) return;
     
     try {
-      await window.electronAPI.responsaveis.delete(selectedResponsavel.id);
+      await window.electronAPI.responsaveis.deactivate(selectedResponsavel.id);
       await loadResponsaveis();
       handleMenuClose();
     } catch (error) {

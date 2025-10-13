@@ -79,7 +79,45 @@ export function setupResponsaveisHandlers() {
     }
   });
 
-  // Deletar responsável (apenas se não tiver idosos vinculados)
+  // Desativar responsável (soft delete)
+  ipcMain.handle('responsaveis:deactivate', async (_, id: number) => {
+    try {
+      const responsavel = await prisma.responsavel.update({
+        where: { id },
+        data: { ativo: false },
+        include: {
+          idosos: {
+            where: { ativo: true },
+          },
+        },
+      });
+      return responsavel;
+    } catch (error) {
+      console.error('Erro ao desativar responsável:', error);
+      throw error;
+    }
+  });
+
+  // Ativar responsável (reativar)
+  ipcMain.handle('responsaveis:activate', async (_, id: number) => {
+    try {
+      const responsavel = await prisma.responsavel.update({
+        where: { id },
+        data: { ativo: true },
+        include: {
+          idosos: {
+            where: { ativo: true },
+          },
+        },
+      });
+      return responsavel;
+    } catch (error) {
+      console.error('Erro ao ativar responsável:', error);
+      throw error;
+    }
+  });
+
+  // Deletar responsável permanentemente (hard delete - apenas se não tiver idosos vinculados)
   ipcMain.handle('responsaveis:delete', async (_, id: number) => {
     try {
       // Verificar se tem idosos vinculados
@@ -103,24 +141,6 @@ export function setupResponsaveisHandlers() {
       return { sucesso: true };
     } catch (error) {
       console.error('Erro ao deletar responsável:', error);
-      throw error;
-    }
-  });
-
-  // Ativar responsável (apenas retorna o responsável com idosos ativos)
-  ipcMain.handle('responsaveis:activate', async (_, id: number) => {
-    try {
-      const responsavel = await prisma.responsavel.findUnique({
-        where: { id },
-        include: {
-          idosos: {
-            where: { ativo: true },
-          },
-        },
-      });
-      return responsavel;
-    } catch (error) {
-      console.error('Erro ao buscar responsável:', error);
       throw error;
     }
   });

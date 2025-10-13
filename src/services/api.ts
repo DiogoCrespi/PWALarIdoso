@@ -199,6 +199,19 @@ export const api = {
       }
     },
   },
+
+  // Backup
+  backup: {
+    gerarCSV: async () => {
+      if (isElectron()) {
+        console.log('🔌 Gerando backup real via Electron');
+        return await window.electronAPI.backup.gerarCSV();
+      } else {
+        console.log('🎭 Gerando backup mock');
+        return await mockElectronAPI.backup.gerarCSV();
+      }
+    },
+  },
 };
 
 // Configurar window.electronAPI para desenvolvimento

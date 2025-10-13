@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider, Dialog, DialogTitle, DialogContent } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
@@ -7,7 +7,11 @@ import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DescriptionIcon from '@mui/icons-material/Description';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import StorageIcon from '@mui/icons-material/Storage';
+import BugReportIcon from '@mui/icons-material/BugReport';
 import { useNavigate, useLocation } from 'react-router-dom';
+import BackupManager from '../Backup/BackupManager';
+import LogViewer from '../Logs/LogViewer';
 
 const drawerWidth = 240;
 
@@ -32,6 +36,8 @@ const menuItems: MenuItem[] = [
 
 export default function Layout({ children }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [logsDialogOpen, setLogsDialogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,6 +47,16 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleMenuClick = (path: string) => {
     navigate(path);
+    setMobileOpen(false);
+  };
+
+  const handleBackupClick = () => {
+    setBackupDialogOpen(true);
+    setMobileOpen(false);
+  };
+
+  const handleLogsClick = () => {
+    setLogsDialogOpen(true);
     setMobileOpen(false);
   };
 
@@ -82,6 +98,23 @@ export default function Layout({ children }: LayoutProps) {
             </ListItemButton>
           </ListItem>
         ))}
+        <Divider />
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleBackupClick}>
+            <ListItemIcon>
+              <StorageIcon />
+            </ListItemIcon>
+            <ListItemText primary="Backup" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleLogsClick}>
+            <ListItemIcon>
+              <BugReportIcon />
+            </ListItemIcon>
+            <ListItemText primary="Logs" />
+          </ListItemButton>
+        </ListItem>
       </List>
     </div>
   );
@@ -161,6 +194,48 @@ export default function Layout({ children }: LayoutProps) {
         <Toolbar /> {/* Spacer for AppBar */}
         {children}
       </Box>
+
+      {/* Backup Dialog */}
+      <Dialog
+        open={backupDialogOpen}
+        onClose={() => setBackupDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        fullScreen
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Gerenciamento de Backups</Typography>
+            <IconButton onClick={() => setBackupDialogOpen(false)}>
+              <Typography variant="h6">×</Typography>
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <BackupManager onClose={() => setBackupDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Logs Dialog */}
+      <Dialog
+        open={logsDialogOpen}
+        onClose={() => setLogsDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        fullScreen
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Visualizador de Logs</Typography>
+            <IconButton onClick={() => setLogsDialogOpen(false)}>
+              <Typography variant="h6">×</Typography>
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <LogViewer onClose={() => setLogsDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

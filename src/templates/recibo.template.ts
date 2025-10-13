@@ -318,6 +318,19 @@ export const getReciboMensalidadeHtml = (data: any): string => {
             color: #00843D;
             font-weight: bold;
           }
+          .calculation-details {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #005A2A;
+            border-radius: 4px;
+          }
+          .calculation-details h4 {
+            margin: 0 0 10px 0;
+            color: #005A2A;
+            font-size: 14px;
+            font-weight: bold;
+          }
           .footer { 
             text-align: center; 
             margin-top: 30px; 
@@ -467,6 +480,30 @@ export const getReciboMensalidadeHtml = (data: any): string => {
               <div class="field-row">
                 <span class="field-label">Doação:</span>
                 <span class="field-value"><span class="donation">R$ ${idoso.doacao}</span></span>
+              </div>
+              
+              <div class="calculation-details">
+                <h4>Detalhes do Cálculo:</h4>
+                <div class="field-row">
+                  <span class="field-label">Valor Base do Benefício:</span>
+                  <span class="field-value">R$ ${idoso.beneficio}</span>
+                </div>
+                <div class="field-row">
+                  <span class="field-label">Percentual Aplicado:</span>
+                  <span class="field-value">${idoso.percentualBeneficio}%</span>
+                </div>
+                <div class="field-row">
+                  <span class="field-label">Total do Benefício:</span>
+                  <span class="field-value">R$ ${idoso.valorBeneficio}</span>
+                </div>
+                <div class="field-row">
+                  <span class="field-label">Valor Pago:</span>
+                  <span class="field-value">R$ ${idoso.valorPagamento}</span>
+                </div>
+                <div class="field-row">
+                  <span class="field-label">Doação Calculada:</span>
+                  <span class="field-value">R$ ${idoso.doacao}</span>
+                </div>
               </div>
               `}
               

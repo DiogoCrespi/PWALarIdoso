@@ -1,6 +1,7 @@
 // Mock da API Electron para desenvolvimento
 // Este arquivo simula as funções da API real
 import { getReciboMensalidadeHtml, getListaIdososHtml } from '../templates/recibo.template';
+import { logInfo, logError } from '../utils/logger';
 import extenso from 'extenso';
 
 // Funções para gerenciar localStorage
@@ -581,6 +582,11 @@ export const mockElectronAPI = {
         status = 'PARCIAL';
       }
       
+      // Calcular valores de benefício
+      const valorBeneficio = valorBase;
+      const percentualBeneficio = 70; // Percentual padrão
+      const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+      
       // Para idosos SOCIAL: não há doação (município paga o restante)
       // Para idosos REGULAR: doação = valor pago - 70% do benefício
       let valorDoacao = 0;
@@ -588,8 +594,7 @@ export const mockElectronAPI = {
         valorDoacao = 0; // Idosos SOCIAL não geram doação
       } else {
         // Idosos REGULAR: doação = valor pago - 70% do benefício
-        const valorBeneficio = valorBase * 0.7;
-        valorDoacao = Math.max(0, valorPago - valorBeneficio);
+        valorDoacao = Math.max(0, valorPago - totalBeneficioAplicado);
       }
       
       // Verificar se já existe pagamento para este idoso/mês/ano
@@ -610,6 +615,10 @@ export const mockElectronAPI = {
         pagamentoExistente.formaPagamento = data.formaPagamento;
         pagamentoExistente.status = status;
         pagamentoExistente.valorDoacaoCalculado = valorDoacao;
+        // Novos campos de cálculo de benefício
+        pagamentoExistente.valorBeneficio = valorBeneficio;
+        pagamentoExistente.percentualBeneficio = percentualBeneficio;
+        pagamentoExistente.totalBeneficioAplicado = totalBeneficioAplicado;
         pagamentoExistente.observacoes = data.observacoes;
         pagamentoExistente.updatedAt = new Date().toISOString();
         
@@ -630,6 +639,10 @@ export const mockElectronAPI = {
           formaPagamento: data.formaPagamento,
           status,
           valorDoacaoCalculado: valorDoacao,
+          // Novos campos de cálculo de benefício
+          valorBeneficio,
+          percentualBeneficio,
+          totalBeneficioAplicado,
           observacoes: data.observacoes,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -1114,7 +1127,7 @@ export const mockElectronAPI = {
   },
   backup: {
     gerarCSV: async () => {
-      console.log('💾 Mock API: Gerando backup CSV...');
+      logInfo('MOCK_API', 'Iniciando geração de backup CSV');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       try {
@@ -1133,12 +1146,13 @@ export const mockElectronAPI = {
           getNotasFiscaisMock()
         ]);
 
-        console.log(`📊 Dados encontrados para backup:`);
-        console.log(`   - Responsáveis: ${responsaveis.length}`);
-        console.log(`   - Idosos: ${idosos.length}`);
-        console.log(`   - Pagamentos: ${pagamentos.length}`);
-        console.log(`   - Configurações: ${configuracoes.length}`);
-        console.log(`   - Notas Fiscais: ${notasFiscais.length}`);
+        logInfo('MOCK_API', 'Dados encontrados para backup', {
+          responsaveis: responsaveis.length,
+          idosos: idosos.length,
+          pagamentos: pagamentos.length,
+          configuracoes: configuracoes.length,
+          notasFiscais: notasFiscais.length
+        });
 
         // Gerar timestamp para nome do arquivo
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
@@ -1148,35 +1162,52 @@ export const mockElectronAPI = {
         let csvContent = '';
         
         // Cabeçalho
-        csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
+        csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,VALOR_BENEFICIO,PERCENTUAL_BENEFICIO,TOTAL_BENEFICIO_APLICADO,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
         
         // Responsáveis
         responsaveis.forEach((r: any) => {
-          csvContent += `RESPONSAVEL,${r.id},"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,,,,${r.ativo ? 'ATIVO' : 'INATIVO'},,,,,,,,,,"${r.createdAt}","${r.updatedAt}"\n`;
+          csvContent += `RESPONSAVEL,${r.id},"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,,,,${r.ativo ? 'ATIVO' : 'INATIVO'},,,,,,,,,,,"${r.createdAt}","${r.updatedAt}"\n`;
         });
         
         // Idosos
         idosos.forEach((i: any) => {
-          csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavel?.id || ''},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
+          csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavel?.id || ''},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
         });
         
         // Pagamentos
         pagamentos.forEach((p: any) => {
           const idoso = idosos.find((i: any) => i.id === p.idosoId);
-          csvContent += `PAGAMENTO,${p.id},"${idoso?.nome || ''}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento || ''}",${p.mesReferencia},${p.anoReferencia},"${p.valorDoacaoCalculado || 0}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
+          
+          // Calcular valores de benefício
+          const valorBeneficio = idoso?.valorMensalidadeBase || 0;
+          const percentualBeneficio = 70; // Percentual padrão
+          const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+          
+          csvContent += `PAGAMENTO,${p.id},"${idoso?.nome || ''}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento || ''}",${p.mesReferencia},${p.anoReferencia},"${p.valorDoacaoCalculado || 0}","${valorBeneficio}","${percentualBeneficio}","${totalBeneficioAplicado}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
         });
         
         // Notas Fiscais
         notasFiscais.forEach((n: any) => {
-          csvContent += `NOTA_FISCAL,${n.id},"${n.nomePessoa || ''}","","","","","","","","","","","","${n.valor || 0}","${n.numeroNFSE || ''}","","","${n.dataPrestacao || ''}",,,,,,"${n.discriminacao || ''}","${n.dataUpload}","${n.dataUpload}"\n`;
+          csvContent += `NOTA_FISCAL,${n.id},"${n.nomePessoa || ''}","","","","","","","","","","","","${n.valor || 0}","${n.numeroNFSE || ''}","","","${n.dataPrestacao || ''}",,,,,,,"${n.discriminacao || ''}","${n.dataUpload}","${n.dataUpload}"\n`;
         });
         
         // Configurações
         configuracoes.forEach(c => {
-          csvContent += `CONFIGURACAO,${c.id},"${c.chave}","","","","","","","","","","","","","","","","","","","","${c.valor}","${c.descricao || ''}","",""\n`;
+          csvContent += `CONFIGURACAO,${c.id},"${c.chave}","","","","","","","","","","","","","","","","","","","","","${c.valor}","${c.descricao || ''}","",""\n`;
         });
         
-        console.log('✅ Mock API: Backup CSV gerado com sucesso');
+        logInfo('MOCK_API', 'Backup CSV gerado com sucesso', {
+          fileName: nomeArquivo,
+          totalRecords: csvContent.split('\n').length - 1, // -1 para excluir cabeçalho
+          stats: {
+            responsaveis: responsaveis.length,
+            idosos: idosos.length,
+            pagamentos: pagamentos.length,
+            configuracoes: configuracoes.length,
+            notasFiscais: notasFiscais.length
+          }
+        });
+        
         return {
           fileName: nomeArquivo,
           content: csvContent,
@@ -1189,7 +1220,7 @@ export const mockElectronAPI = {
           }
         };
       } catch (error) {
-        console.error('❌ Mock API: Erro ao gerar backup:', error);
+        logError('MOCK_API', 'Erro ao gerar backup CSV', { error: error instanceof Error ? error.message : String(error) });
         throw error;
       }
     }
@@ -1271,6 +1302,13 @@ CPF ${data.cpfIdoso}   Forma pagamento: ${data.formaPagamento}   NFS-e ${data.nu
 
 RESPONSAVEL: ${data.nomeResponsavel}
 CPF: ${data.cpfResponsavel}
+
+DETALHES DO CÁLCULO:
+- Valor Base do Benefício: R$ ${data.beneficio.toFixed(2).replace('.', ',')}
+- Percentual Aplicado: ${data.percentualBeneficio}%
+- Total do Benefício: R$ ${data.valorBeneficio.toFixed(2).replace('.', ',')}
+- Valor Pago: R$ ${data.valorPagamento.toFixed(2).replace('.', ',')}
+- Doação Calculada: R$ ${data.doacao.toFixed(2).replace('.', ',')}
           `.trim();
 
           const txtFileName = fileName.replace('.docx', '.txt');
@@ -1340,10 +1378,10 @@ CPF: ${data.cpfResponsavel}
             pagador: pagamento?.pagador || '',
             status: pagamento?.status || 'PENDENTE',
             valorDoacao: pagamento?.valorDoacaoCalculado ? pagamento.valorDoacaoCalculado.toFixed(2).replace('.', ',') : '0,00',
-            // Cálculos
-            beneficio: idosoCompleto?.valorMensalidadeBase ? idosoCompleto.valorMensalidadeBase.toFixed(2).replace('.', ',') : '0,00',
-            percentualBeneficio: 70,
-            valorBeneficio: idosoCompleto?.valorMensalidadeBase ? (idosoCompleto.valorMensalidadeBase * 0.7).toFixed(2).replace('.', ',') : '0,00',
+            // Cálculos - usar dados estruturados do pagamento se disponíveis
+            beneficio: pagamento?.valorBeneficio ? pagamento.valorBeneficio.toFixed(2).replace('.', ',') : (idosoCompleto?.valorMensalidadeBase ? idosoCompleto.valorMensalidadeBase.toFixed(2).replace('.', ',') : '0,00'),
+            percentualBeneficio: pagamento?.percentualBeneficio || 70,
+            valorBeneficio: pagamento?.totalBeneficioAplicado ? pagamento.totalBeneficioAplicado.toFixed(2).replace('.', ',') : (idosoCompleto?.valorMensalidadeBase ? (idosoCompleto.valorMensalidadeBase * 0.7).toFixed(2).replace('.', ',') : '0,00'),
             doacao: pagamento?.valorDoacaoCalculado ? pagamento.valorDoacaoCalculado.toFixed(2).replace('.', ',') : '0,00'
           };
         });
