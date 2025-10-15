@@ -269,7 +269,7 @@ export default function DashboardPage() {
                       <strong>CPF:</strong> {idoso.cpf}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Mensalidade:</strong> R$ {idoso.valorMensalidadeBase.toFixed(2)}
+                      <strong>Mensalidade:</strong> R$ {idoso.valorMensalidadeBase?.toFixed(2) || '0,00'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       <strong>Responsável:</strong> {idoso.responsavel?.nome}

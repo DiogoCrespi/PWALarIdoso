@@ -784,7 +784,7 @@ const NotasFiscaisPage: React.FC = () => {
                       sx={{ mr: 1, mb: 1 }}
                     />
                     <Chip 
-                      label={`70%: R$ ${((nota.idoso.valorMensalidadeBase || 0) * 0.7).toFixed(2)}`} 
+                      label={`70%: R$ ${(((nota.idoso as any).beneficioSalario && (nota.idoso as any).beneficioSalario > 0 ? (nota.idoso as any).beneficioSalario : 0) * 0.7).toFixed(2)}`} 
                       size="small" 
                       color="warning"
                       variant="outlined"

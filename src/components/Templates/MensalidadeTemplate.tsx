@@ -160,7 +160,7 @@ const MensalidadeTemplate: React.FC = () => {
     console.log('📅 MensalidadeTemplate: mesReferencia:', item.mesReferencia);
     console.log('📅 MensalidadeTemplate: dataPagamento:', item.dataPagamento);
     
-    const valorBeneficio = (item.idoso.valorMensalidadeBase * 70) / 100;
+    const valorBeneficio = ((item.idoso as any).beneficioSalario && (item.idoso as any).beneficioSalario > 0 ? (item.idoso as any).beneficioSalario : 0) * 0.7;
     const doacao = Math.max(0, item.valorPago - valorBeneficio);
     
     // CORREÇÃO: Usar dataPrestacao da Nota Fiscal em vez de dataPagamento do Pagamento

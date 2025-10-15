@@ -81,7 +81,7 @@ describe('PaymentModal - Funcionalidades de Pagamentos', () => {
       renderPaymentModal();
       
       expect(screen.getByText(testUtils.mockIdoso.nome)).toBeInTheDocument();
-      expect(screen.getByText(`R$ ${testUtils.mockIdoso.valorMensalidadeBase.toFixed(2).replace('.', ',')}`)).toBeInTheDocument();
+      expect(screen.getByText(`R$ ${((testUtils.mockIdoso as any).beneficioSalario && (testUtils.mockIdoso as any).beneficioSalario > 0 ? (testUtils.mockIdoso as any).beneficioSalario : 0).toFixed(2).replace('.', ',')}`)).toBeInTheDocument();
     });
 
     it('deve exibir tipo do idoso (REGULAR/SOCIAL)', () => {
@@ -122,7 +122,7 @@ describe('PaymentModal - Funcionalidades de Pagamentos', () => {
       renderPaymentModal();
       
       const valorInput = screen.getByLabelText('Valor Pago');
-      const valorLimite = testUtils.mockIdoso.valorMensalidadeBase * 0.7;
+      const valorLimite = (testUtils.mockIdoso as any).beneficioSalario && (testUtils.mockIdoso as any).beneficioSalario > 0 ? (testUtils.mockIdoso as any).beneficioSalario * 0.7 : 0;
       const valorExcedente = valorLimite + 100;
       
       fireEvent.change(valorInput, { target: { value: valorExcedente.toString() } });
@@ -285,7 +285,7 @@ describe('PaymentModal - Funcionalidades de Pagamentos', () => {
       renderPaymentModal({ onSave });
       
       const valorInput = screen.getByLabelText('Valor Pago');
-      const valorPago = testUtils.mockIdoso.valorMensalidadeBase * 0.7; // 70% do valor base
+      const valorPago = (testUtils.mockIdoso as any).beneficioSalario && (testUtils.mockIdoso as any).beneficioSalario > 0 ? (testUtils.mockIdoso as any).beneficioSalario * 0.7 : 0; // 70% do salário
       fireEvent.change(valorInput, { target: { value: valorPago.toString() } });
       
       const dataInput = screen.getByLabelText('Data do Pagamento');
@@ -308,7 +308,7 @@ describe('PaymentModal - Funcionalidades de Pagamentos', () => {
       renderPaymentModal({ onSave });
       
       const valorInput = screen.getByLabelText('Valor Pago');
-      const valorPago = testUtils.mockIdoso.valorMensalidadeBase * 0.5; // 50% do valor base
+      const valorPago = (testUtils.mockIdoso as any).beneficioSalario && (testUtils.mockIdoso as any).beneficioSalario > 0 ? (testUtils.mockIdoso as any).beneficioSalario * 0.5 : 0; // 50% do salário
       fireEvent.change(valorInput, { target: { value: valorPago.toString() } });
       
       const dataInput = screen.getByLabelText('Data do Pagamento');

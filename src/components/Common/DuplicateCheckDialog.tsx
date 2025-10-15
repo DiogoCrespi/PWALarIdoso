@@ -183,7 +183,7 @@ export const DuplicateCheckDialog: React.FC<DuplicateCheckDialogProps> = ({
                 {type === 'idoso' && item.valorMensalidadeBase && (
                   <Grid item xs={12} sm={6}>
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Mensalidade Base:</strong> R$ {item.valorMensalidadeBase.toFixed(2)}
+                      <strong>Mensalidade Base:</strong> R$ {item.valorMensalidadeBase?.toFixed(2) || '0,00'}
                     </Typography>
                   </Grid>
                 )}

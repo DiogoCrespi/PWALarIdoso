@@ -942,7 +942,7 @@ export const mockElectronAPI = {
       
       // Buscar idoso para calcular status
       const idoso = idososMock.find((i: any) => i.id === idosoId);
-      const valorBase = idoso?.valorMensalidadeBase || 2500;
+      const valorBase = (idoso as any)?.beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0;
       const valorPago = data.valorPago || 0;
       const tipoIdoso = idoso?.tipo || 'REGULAR';
       let status = 'PENDENTE';
@@ -957,7 +957,7 @@ export const mockElectronAPI = {
       }
       
       // Calcular valores de benefício
-      const salarioIdoso = (idoso as any).beneficioSalario || valorBase; // Salário do idoso (ex: R$ 1.518,00)
+      const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
       const percentualBeneficio = 70; // Percentual padrão
       const valorNFSE = salarioIdoso * (percentualBeneficio / 100); // 70% do salário (ex: R$ 1.062,60)
       
