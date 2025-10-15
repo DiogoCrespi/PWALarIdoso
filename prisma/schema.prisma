@@ -33,7 +33,8 @@ model Idoso {
   dataNascimento       DateTime?
   responsavelId        Int
   responsavel          Responsavel  @relation(fields: [responsavelId], references: [id])
-  valorMensalidadeBase Float
+  valorMensalidadeBase Float        // Valor que o idoso paga para estar no lar
+  beneficioSalario     Float        @default(0) // Salário do idoso (usado para calcular 70% na NFSE)
   pagamentos           Pagamento[]
   notasFiscais         NotaFiscal[]
   ativo                Boolean      @default(true)

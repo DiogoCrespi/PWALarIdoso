@@ -32,6 +32,7 @@ import { useDropzone } from 'react-dropzone';
 import { extractNFSEWithFallback } from '../../utils/geminiExtractor';
 import { isGeminiConfigured, getGeminiApiKey } from '../../config/gemini';
 import { logInfo, logError, logWarn } from '../../utils/logger';
+import { api } from '../../services/api';
 import type { Idoso } from '../../electron.d';
 
 interface PaymentModalProps {
@@ -344,7 +345,8 @@ export default function PaymentModal({
       const valorNormalizado = normalizeValue(extractedData.valor);
       
       // Validar valor: não pode exceder 70% do salário do idoso (para todos os tipos)
-      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
+      const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0;
+      const valorMaximo = salarioIdoso * 0.7;
       if (valorNormalizado > valorMaximo) {
         setError(`Valor da NFSE (R$ ${valorNormalizado.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
         return;
@@ -401,25 +403,30 @@ export default function PaymentModal({
       const valorPago = normalizeValue(formData.valorPago);
       console.log('🔍 Validando pagamento para idoso:', idoso.nome, 'tipo:', idoso.tipo);
       
-      // Validar valor: não pode exceder 70% do salário do idoso (para todos os tipos)
-      const valorMaximo = idoso.valorMensalidadeBase * 0.7;
-      console.log('⚠️ Validação 70% - limite:', valorMaximo, 'valor pago:', valorPago);
-      if (valorPago > valorMaximo) {
-        const errorMsg = `Valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`;
-        logWarn('PAYMENT_MODAL', 'Validação falhou: valor excede 70% do salário', { 
-          valorPago,
-          valorMaximo,
-          idosoId: idoso.id,
-          idosoTipo: idoso.tipo
-        });
-        showSnackbar(errorMsg, 'error');
-        throw new Error(errorMsg);
+      // Calcular salário do idoso para validações e cálculos
+      const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso
+      console.log('💰 Cálculo de pagamento - salarioIdoso:', salarioIdoso, 'valorPago:', valorPago);
+      
+      // Para idosos SOCIAL: valor pago deve ser igual ao salário (não pode exceder)
+      if (idoso.tipo === 'SOCIAL') {
+        const valorMaximoSocial = salarioIdoso;
+        if (valorPago > valorMaximoSocial) {
+          const errorMsg = `Para idosos SOCIAL, o valor pago (R$ ${valorPago.toFixed(2)}) não pode exceder o salário do idoso (R$ ${valorMaximoSocial.toFixed(2)})`;
+          logWarn('PAYMENT_MODAL', 'Validação falhou: valor excede salário para idoso SOCIAL', { 
+            valorPago,
+            valorMaximoSocial,
+            salarioIdoso,
+            idosoId: idoso.id,
+            idosoTipo: idoso.tipo
+          });
+          showSnackbar(errorMsg, 'error');
+          throw new Error(errorMsg);
+        }
       }
 
-      // Calcular valores de benefício
-      const valorBeneficio = idoso.valorMensalidadeBase;
+      // Calcular valores de benefício (salarioIdoso já calculado acima)
       const percentualBeneficio = 70; // Percentual padrão
-      const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+      const valorNFSE = salarioIdoso * (percentualBeneficio / 100); // 70% do salário (ex: R$ 1.062,60)
       
       const dataToSave = {
         idosoId: idoso.id,
@@ -434,26 +441,75 @@ export default function PaymentModal({
         dataEmissao: formData.dataEmissao || null,
         discriminacao: formData.discriminacao || null,
         // Novos campos de cálculo de benefício
-        valorBeneficio,
+        salarioIdoso,
         percentualBeneficio,
-        totalBeneficioAplicado,
+        valorNFSE,
       };
 
-      await onSave(dataToSave);
+      const resultado = await onSave(dataToSave);
       setSuccess(true);
+      
+      const valorDoacao = Math.max(0, valorPago - valorNFSE);
       
       logInfo('PAYMENT_MODAL', 'Pagamento salvo com sucesso', { 
         idosoId: idoso.id,
         valorPago,
-        valorBeneficio,
+        salarioIdoso,
         percentualBeneficio,
-        totalBeneficioAplicado,
-        valorDoacao: Math.max(0, valorPago - totalBeneficioAplicado),
+        valorNFSE,
+        valorDoacao,
         mesReferencia: mes,
         anoReferencia: ano
       });
       
-      showSnackbar(pagamentoExistente ? 'Pagamento atualizado com sucesso!' : 'Pagamento salvo com sucesso!', 'success');
+      // Gerar recibo automaticamente se há doação e não é idoso SOCIAL
+      if (valorDoacao > 0 && idoso.tipo !== 'SOCIAL') {
+        try {
+          logInfo('PAYMENT_MODAL', 'Gerando recibo automático para doação', {
+            valorDoacao,
+            valorNFSE: valorNFSE,
+            valorPago: valorPago,
+            salarioIdoso: salarioIdoso
+          });
+
+          // Aguardar um pouco para garantir que o pagamento foi salvo
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Buscar o ID do pagamento salvo
+          const pagamentoId = resultado?.id || pagamentoExistente?.id;
+          
+          if (pagamentoId) {
+            const reciboResult = await api.recibos.gerarReciboAutomatico(pagamentoId);
+            
+            if (reciboResult.success) {
+              logInfo('PAYMENT_MODAL', 'Recibo automático gerado com sucesso', {
+                pagamentoId,
+                valorDoacao: reciboResult.valorDoacao,
+                fileName: reciboResult.fileName
+              });
+              
+              showSnackbar(
+                `Pagamento salvo e recibo de doação gerado! Valor da doação: R$ ${reciboResult.valorDoacao?.toFixed(2) || valorDoacao.toFixed(2)}`, 
+                'success'
+              );
+            } else {
+              logError('PAYMENT_MODAL', 'Erro ao gerar recibo automático', reciboResult.error);
+              showSnackbar('Pagamento salvo, mas erro ao gerar recibo automático', 'warning');
+            }
+          } else {
+            logWarn('PAYMENT_MODAL', 'ID do pagamento não encontrado para gerar recibo');
+            showSnackbar('Pagamento salvo com sucesso!', 'success');
+          }
+        } catch (reciboError) {
+          logError('PAYMENT_MODAL', 'Erro ao gerar recibo automático', reciboError);
+          showSnackbar('Pagamento salvo, mas erro ao gerar recibo automático', 'warning');
+        }
+        } else {
+          const mensagem = idoso.tipo === 'SOCIAL' 
+            ? (pagamentoExistente ? 'Pagamento atualizado com sucesso! (Idoso SOCIAL - prefeitura paga o restante)' : 'Pagamento salvo com sucesso! (Idoso SOCIAL - prefeitura paga o restante)')
+            : (pagamentoExistente ? 'Pagamento atualizado com sucesso!' : 'Pagamento salvo com sucesso!');
+          showSnackbar(mensagem, 'success');
+        }
       
       // Fechar modal após 3 segundos para dar tempo de ver o feedback
       setTimeout(() => {
@@ -496,16 +552,16 @@ export default function PaymentModal({
     }
   };
 
-  const valorBase = idoso?.valorMensalidadeBase || 0;
+  const salarioIdoso = (idoso as any)?.beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0;
   const valorPago = parseFloat(formData.valorPago) || 0;
   
   // Cálculos estruturados de benefício
-  const valorBeneficio = valorBase;
+  const valorBeneficio = salarioIdoso;
   const percentualBeneficio = 70; // Percentual padrão
   const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
   const valorDoacao = Math.max(0, valorPago - totalBeneficioAplicado);
   
-  const status = valorPago >= valorBase ? 'PAGO' : valorPago > 0 ? 'PARCIAL' : 'PENDENTE';
+  const status = valorPago >= salarioIdoso ? 'PAGO' : valorPago > 0 ? 'PARCIAL' : 'PENDENTE';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -584,10 +640,10 @@ export default function PaymentModal({
                     <strong>CPF:</strong> {idoso?.cpf}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Mensalidade Base:</strong> R$ {valorBase.toFixed(2)}
+                    <strong>Mensalidade Base:</strong> R$ {idoso?.valorMensalidadeBase?.toFixed(2) || '0,00'}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Benefício:</strong> {valorBase.toFixed(2)} X 70% = R$ {(valorBase * 0.7).toFixed(2)}
+                    <strong>Benefício (Salário):</strong> R$ {salarioIdoso.toFixed(2)} X 70% = R$ {(salarioIdoso * 0.7).toFixed(2)}
                   </Typography>
                 </Box>
 
@@ -826,7 +882,7 @@ export default function PaymentModal({
                   />
                 )}
                 <Chip
-                  label={`Limite: R$ ${(valorBase * 0.7).toFixed(2)} (70%)`}
+                  label={`Limite: R$ ${(salarioIdoso * 0.7).toFixed(2)} (70%)`}
                   color="warning"
                   size="small"
                   variant="outlined"
@@ -851,7 +907,7 @@ export default function PaymentModal({
                     fullWidth
                     label="Valor Pago (R$)"
                     placeholder="Ex: 1062.60 ou 1062,60"
-                    helperText={`Mensalidade base: R$ ${valorBase.toFixed(2)} - Aceita ponto ou vírgula como centavos`}
+                    helperText={`Salário do idoso: R$ ${salarioIdoso.toFixed(2)} - Aceita ponto ou vírgula como centavos`}
                     onBlur={handleValueBlur}
                   />
                 )}

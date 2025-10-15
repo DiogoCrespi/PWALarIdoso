@@ -35,6 +35,7 @@ import {
   Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import NFSEUpload from '../components/NFSE/NFSEUpload';
+import { api } from '../services/api';
 
 interface NotaFiscal {
   id: number;
@@ -233,7 +234,8 @@ const NotasFiscaisPage: React.FC = () => {
             cpf: '',
             dataNascimento: null,
             responsavelId: responsavelId,
-            valorMensalidadeBase: 2500,
+            valorMensalidadeBase: data.valor || 2500, // Usar valor da NFSE como mensalidade
+            beneficioSalario: data.valor || 2500, // Usar valor da NFSE como benefício (salário)
             tipo: 'REGULAR',
             observacoes: 'Idoso criado automaticamente via NFSE',
             ativo: true,
@@ -323,6 +325,61 @@ const NotasFiscaisPage: React.FC = () => {
 
         setNotasFiscais(prev => [novaNota, ...prev]);
         setSnackbarMessage('Nota fiscal processada com sucesso!');
+        
+        // Gerar recibo automaticamente se há doação
+        try {
+          if (pagamentoId) {
+            // Buscar dados do pagamento para calcular doação
+            const pagamento = await window.electronAPI.pagamentos.getById(pagamentoId);
+            const idoso = await window.electronAPI.idosos.getById(idosoId);
+            
+            if (pagamento && idoso) {
+              const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
+              const valorPago = pagamento.valorPago || 0; // Mensalidade paga (ex: R$ 3.225,00)
+              const valorNFSE = salarioIdoso * 0.7; // 70% do salário (ex: R$ 1.062,60)
+              const valorDoacao = Math.max(0, valorPago - valorNFSE); // Doação (ex: R$ 2.162,40)
+              
+              if (valorDoacao > 0 && idoso.tipo !== 'SOCIAL') {
+                console.log('📄 NotasFiscaisPage: Gerando recibo automático para doação', {
+                  valorDoacao,
+                  valorNFSE,
+                  valorPago,
+                  salarioIdoso,
+                  pagamentoId
+                });
+                
+                // Aguardar um pouco para garantir que o pagamento foi salvo
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const reciboResult = await api.recibos.gerarReciboAutomatico(pagamentoId);
+                
+                if (reciboResult.success) {
+                  console.log('✅ NotasFiscaisPage: Recibo automático gerado com sucesso', {
+                    pagamentoId,
+                    valorDoacao: reciboResult.valorDoacao,
+                    fileName: reciboResult.fileName
+                  });
+                  
+                  setSnackbarMessage(
+                    `Nota fiscal processada e recibo de doação gerado! Valor da doação: R$ ${reciboResult.valorDoacao?.toFixed(2) || valorDoacao.toFixed(2)}`
+                  );
+                } else {
+                  console.error('❌ NotasFiscaisPage: Erro ao gerar recibo automático', reciboResult.error);
+                  setSnackbarMessage('Nota fiscal processada, mas erro ao gerar recibo automático');
+                }
+                } else {
+                  const motivo = idoso.tipo === 'SOCIAL' 
+                    ? 'Idoso SOCIAL não gera recibo (prefeitura paga o restante)'
+                    : 'Não há doação para gerar recibo';
+                  console.log(`ℹ️ NotasFiscaisPage: ${motivo}`);
+                  setSnackbarMessage(`Nota fiscal processada com sucesso! (${motivo})`);
+                }
+            }
+          }
+        } catch (reciboError) {
+          console.error('❌ NotasFiscaisPage: Erro ao gerar recibo automático', reciboError);
+          setSnackbarMessage('Nota fiscal processada, mas erro ao gerar recibo automático');
+        }
       }
       
       setSnackbarOpen(true);
@@ -612,8 +669,8 @@ const NotasFiscaisPage: React.FC = () => {
                     </IconButton>
                     {nota.pagamentoId && nota.valor && nota.idoso && (() => {
                       const valorPago = nota.valor;
-                      const valorBase = nota.idoso.valorMensalidadeBase || 0;
-                      const valorDoacao = Math.max(0, valorPago - (valorBase * 0.7));
+                      const salarioIdoso = (nota.idoso as any).beneficioSalario && (nota.idoso as any).beneficioSalario > 0 ? (nota.idoso as any).beneficioSalario : 0;
+                      const valorDoacao = Math.max(0, valorPago - (salarioIdoso * 0.7));
                       return valorDoacao > 0 ? (
                         <IconButton 
                           size="small" 
@@ -656,9 +713,9 @@ const NotasFiscaisPage: React.FC = () => {
                   <Box sx={{ mb: 2 }}>
                     {(() => {
                       const valorPago = nota.valor;
-                      const valorBase = nota.idoso.valorMensalidadeBase || 0;
-                      const valorDoacao = Math.max(0, valorPago - (valorBase * 0.7));
-                      const valorMaximo = valorBase * 0.7;
+                      const salarioIdoso = (nota.idoso as any).beneficioSalario && (nota.idoso as any).beneficioSalario > 0 ? (nota.idoso as any).beneficioSalario : 0;
+                      const valorDoacao = Math.max(0, valorPago - (salarioIdoso * 0.7));
+                      const valorMaximo = salarioIdoso * 0.7;
                       const isExcedente = valorPago > valorMaximo;
                       
                       return (

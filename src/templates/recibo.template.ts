@@ -177,6 +177,15 @@ export const getReciboMensalidadeHtml = (data: any): string => {
           <div class="recibo-content">
             &nbsp;&nbsp;&nbsp;&nbsp;Recebemos do(a) Sr.(a) <strong>${data.nomeResponsavel}</strong> CPF <strong>${data.cpfResponsavel}</strong>, a quantia de <strong>R$ ${data.valorPagamento.toFixed(2).replace('.', ',')}</strong> (${data.valorPorExtenso || 'valor por extenso'}). ${data.tipoIdoso === 'SOCIAL' ? 'Correspondente à participação no custeio da entidade.' : 'Correspondente a doações para nossas obras assistenciais.'}<br><br>
             &nbsp;&nbsp;&nbsp;&nbsp;Referente ao mês de <strong>${data.mesReferencia}</strong>. Conforme ${data.formaPagamento}.<br><br>
+            ${data.salarioIdoso && data.valorNFSE && data.valorTotalPago ? `
+            <div class="calculation-details">
+              <h4>Detalhes do Cálculo:</h4>
+              <p><strong>Benefício (Salário do Idoso):</strong> R$ ${data.salarioIdoso.toFixed(2).replace('.', ',')}</p>
+              <p><strong>NFSE (70% do Salário):</strong> R$ ${data.valorNFSE.toFixed(2).replace('.', ',')}</p>
+              <p><strong>Valor da Mensalidade Paga:</strong> R$ ${data.valorTotalPago.toFixed(2).replace('.', ',')}</p>
+              <p><strong>Doação Calculada:</strong> R$ ${data.valorDoacao?.toFixed(2).replace('.', ',') || data.valorPagamento.toFixed(2).replace('.', ',')}</p>
+            </div>
+            ` : ''}
             &nbsp;&nbsp;&nbsp;&nbsp;Para clareza firmo(amos) o presente.
           </div>
           

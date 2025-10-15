@@ -8,7 +8,6 @@ import {
   TextField,
   Box,
   Typography,
-  Alert,
   CircularProgress,
   Grid,
   InputAdornment,
@@ -20,6 +19,8 @@ import {
   Email as EmailIcon,
 } from '@mui/icons-material';
 import { identifyDocument, validateCPF } from '../../utils/documentValidation';
+import { useDuplicateCheck } from '../../hooks/useDuplicateCheck';
+import { DuplicateCheckDialog } from '../Common/DuplicateCheckDialog';
 
 interface Responsavel {
   id: number;
@@ -51,6 +52,15 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [documentType, setDocumentType] = useState<'CPF' | 'CNPJ' | null>(null);
+  
+  // Estados para verificação de duplicatas
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateData, setDuplicateData] = useState<{
+    newItem: any;
+    existingItems: any[];
+  } | null>(null);
+  
+  const { checkResponsavelDuplicates } = useDuplicateCheck();
 
   // Resetar formulário quando abrir/fechar
   useEffect(() => {
@@ -209,6 +219,41 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
       return;
     }
 
+    // Se estiver editando um responsável existente, não verificar duplicatas
+    if (responsavel) {
+      await saveResponsavel();
+      return;
+    }
+
+    // Verificar duplicatas antes de salvar
+    try {
+      console.log('🔍 Verificando duplicatas...');
+      const duplicateResult = await checkResponsavelDuplicates(
+        formData.nome, 
+        formData.cpf.replace(/\D/g, '')
+      );
+
+      if (duplicateResult.hasDuplicates && duplicateResult.duplicatas.length > 0) {
+        console.log('⚠️ Duplicatas encontradas:', duplicateResult.duplicatas);
+        setDuplicateData({
+          newItem: formData,
+          existingItems: duplicateResult.duplicatas
+        });
+        setDuplicateDialogOpen(true);
+        return;
+      }
+
+      // Se não há duplicatas, salvar normalmente
+      await saveResponsavel();
+    } catch (error) {
+      console.error('❌ Erro ao verificar duplicatas:', error);
+      // Em caso de erro na verificação, salvar normalmente
+      await saveResponsavel();
+    }
+  };
+
+  // Função para salvar o responsável
+  const saveResponsavel = async () => {
     try {
       console.log('💾 Iniciando salvamento...');
       setSaving(true);
@@ -232,6 +277,22 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
       alert('Erro ao salvar responsável: ' + (error as Error).message);
       setSaving(false);
     }
+  };
+
+  // Função para usar responsável existente
+  const handleUseExisting = (existingResponsavel: any) => {
+    console.log('✅ Usando responsável existente:', existingResponsavel);
+    setDuplicateDialogOpen(false);
+    setDuplicateData(null);
+    onSave(existingResponsavel);
+  };
+
+  // Função para criar novo responsável mesmo com duplicatas
+  const handleCreateNew = async () => {
+    console.log('➕ Criando novo responsável mesmo com duplicatas');
+    setDuplicateDialogOpen(false);
+    setDuplicateData(null);
+    await saveResponsavel();
   };
 
   return (
@@ -357,6 +418,23 @@ const ResponsavelForm: React.FC<ResponsavelFormProps> = ({
           {saving ? 'Salvando...' : 'Salvar'}
         </Button>
       </DialogActions>
+      
+      {/* Diálogo de Verificação de Duplicatas */}
+      {duplicateData && (
+        <DuplicateCheckDialog
+          open={duplicateDialogOpen}
+          onClose={() => {
+            setDuplicateDialogOpen(false);
+            setDuplicateData(null);
+          }}
+          onUseExisting={handleUseExisting}
+          onCreateNew={handleCreateNew}
+          title="Responsável Similar Encontrado"
+          newItem={duplicateData.newItem}
+          existingItems={duplicateData.existingItems}
+          type="responsavel"
+        />
+      )}
     </Dialog>
   );
 };

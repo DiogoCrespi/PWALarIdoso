@@ -296,6 +296,62 @@ const limparTodosOsDados = () => {
   };
 };
 
+// Função para verificar duplicatas de responsáveis
+const verificarDuplicatasResponsavel = (nome: string, cpf?: string) => {
+  const responsaveis = getResponsaveisMock();
+  
+  // Buscar por nome similar (case insensitive)
+  const nomeLower = nome.toLowerCase().trim();
+  const duplicatasPorNome = responsaveis.filter((r: any) => 
+    r.nome.toLowerCase().trim() === nomeLower
+  );
+  
+  // Buscar por CPF se fornecido
+  let duplicatasPorCPF = [];
+  if (cpf && cpf.trim()) {
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    duplicatasPorCPF = responsaveis.filter((r: any) => 
+      r.cpf && r.cpf.replace(/\D/g, '') === cpfLimpo
+    );
+  }
+  
+  // Combinar duplicatas (remover duplicatas)
+  const todasDuplicatas = [...duplicatasPorNome, ...duplicatasPorCPF];
+  const duplicatasUnicas = todasDuplicatas.filter((item, index, self) => 
+    index === self.findIndex(t => t.id === item.id)
+  );
+  
+  return duplicatasUnicas;
+};
+
+// Função para verificar duplicatas de idosos
+const verificarDuplicatasIdoso = (nome: string, cpf?: string) => {
+  const idosos = getIdososMock();
+  
+  // Buscar por nome similar (case insensitive)
+  const nomeLower = nome.toLowerCase().trim();
+  const duplicatasPorNome = idosos.filter((i: any) => 
+    i.nome.toLowerCase().trim() === nomeLower
+  );
+  
+  // Buscar por CPF se fornecido
+  let duplicatasPorCPF = [];
+  if (cpf && cpf.trim()) {
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    duplicatasPorCPF = idosos.filter((i: any) => 
+      i.cpf && i.cpf.replace(/\D/g, '') === cpfLimpo
+    );
+  }
+  
+  // Combinar duplicatas (remover duplicatas)
+  const todasDuplicatas = [...duplicatasPorNome, ...duplicatasPorCPF];
+  const duplicatasUnicas = todasDuplicatas.filter((item, index, self) => 
+    index === self.findIndex(t => t.id === item.id)
+  );
+  
+  return duplicatasUnicas;
+};
+
 // Função para inicializar o sistema com dados do CSV existente
 const inicializarSistemaComDadosExistentes = async () => {
   try {
@@ -543,6 +599,29 @@ export const mockElectronAPI = {
       console.log('✅ Mock API: Idosos retornados:', idososMock);
       return idososMock;
     },
+    verificarDuplicatas: async (nome: string, cpf?: string) => {
+      logInfo('MOCK_API', 'Verificando duplicatas de idoso', { nome, cpf });
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      try {
+        const duplicatas = verificarDuplicatasIdoso(nome, cpf);
+        logInfo('MOCK_API', 'Duplicatas encontradas', { count: duplicatas.length });
+        return {
+          success: true,
+          duplicatas,
+          hasDuplicates: duplicatas.length > 0
+        };
+      } catch (error) {
+        logError('MOCK_API', 'Erro ao verificar duplicatas de idoso', error instanceof Error ? error.message : String(error));
+        return {
+          success: false,
+          duplicatas: [],
+          hasDuplicates: false,
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    },
+    
     create: async (data: any) => {
       console.log('➕ Mock API: Criando idoso:', data);
       await new Promise(resolve => setTimeout(resolve, 400));
@@ -699,6 +778,29 @@ export const mockElectronAPI = {
       console.log('✅ Mock API: Responsáveis retornados:', responsaveisComIdosos);
       return responsaveisComIdosos;
     },
+    verificarDuplicatas: async (nome: string, cpf?: string) => {
+      logInfo('MOCK_API', 'Verificando duplicatas de responsável', { nome, cpf });
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      try {
+        const duplicatas = verificarDuplicatasResponsavel(nome, cpf);
+        logInfo('MOCK_API', 'Duplicatas encontradas', { count: duplicatas.length });
+        return {
+          success: true,
+          duplicatas,
+          hasDuplicates: duplicatas.length > 0
+        };
+      } catch (error) {
+        logError('MOCK_API', 'Erro ao verificar duplicatas de responsável', error instanceof Error ? error.message : String(error));
+        return {
+          success: false,
+          duplicatas: [],
+          hasDuplicates: false,
+          error: error instanceof Error ? error.message : String(error)
+        };
+      }
+    },
+    
     create: async (data: any) => {
       console.log('➕ Mock API: Criando responsável:', data);
       await new Promise(resolve => setTimeout(resolve, 400));
@@ -855,18 +957,18 @@ export const mockElectronAPI = {
       }
       
       // Calcular valores de benefício
-      const valorBeneficio = valorBase;
+      const salarioIdoso = (idoso as any).beneficioSalario || valorBase; // Salário do idoso (ex: R$ 1.518,00)
       const percentualBeneficio = 70; // Percentual padrão
-      const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+      const valorNFSE = salarioIdoso * (percentualBeneficio / 100); // 70% do salário (ex: R$ 1.062,60)
       
       // Para idosos SOCIAL: não há doação (município paga o restante)
       // Para idosos REGULAR: doação = valor pago - 70% do benefício
       let valorDoacao = 0;
       if (tipoIdoso === 'SOCIAL') {
-        valorDoacao = 0; // Idosos SOCIAL não geram doação
+        valorDoacao = 0; // Idosos SOCIAL não geram doação (prefeitura paga o restante)
       } else {
         // Idosos REGULAR: doação = valor pago - 70% do benefício
-        valorDoacao = Math.max(0, valorPago - totalBeneficioAplicado);
+        valorDoacao = Math.max(0, valorPago - valorNFSE);
       }
       
       // Verificar se já existe pagamento para este idoso/mês/ano
@@ -1457,7 +1559,7 @@ export const mockElectronAPI = {
         let csvContent = '';
         
         // Cabeçalho
-        csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,VALOR_BENEFICIO,PERCENTUAL_BENEFICIO,TOTAL_BENEFICIO_APLICADO,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
+        csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,BENEFICIO_SALARIO,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,SALARIO_IDOSO,PERCENTUAL_BENEFICIO,VALOR_NFSE,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
         
         // Responsáveis
         responsaveis.forEach((r: any) => {
@@ -1466,7 +1568,7 @@ export const mockElectronAPI = {
         
         // Idosos
         idosos.forEach((i: any) => {
-          csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavel?.id || ''},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
+          csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento || ''}","${i.valorMensalidadeBase || 0}","${i.beneficioSalario || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavel?.id || ''},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
         });
         
         // Pagamentos
@@ -1474,11 +1576,11 @@ export const mockElectronAPI = {
           const idoso = idosos.find((i: any) => i.id === p.idosoId);
           
           // Calcular valores de benefício
-          const valorBeneficio = idoso?.valorMensalidadeBase || 0;
+          const salarioIdoso = (idoso as any)?.beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso
           const percentualBeneficio = 70; // Percentual padrão
-          const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
+          const valorNFSE = salarioIdoso * (percentualBeneficio / 100); // 70% do salário
           
-          csvContent += `PAGAMENTO,${p.id},"${idoso?.nome || ''}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento || ''}",${p.mesReferencia},${p.anoReferencia},"${p.valorDoacaoCalculado || 0}","${valorBeneficio}","${percentualBeneficio}","${totalBeneficioAplicado}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
+          csvContent += `PAGAMENTO,${p.id},"${idoso?.nome || ''}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento || ''}",${p.mesReferencia},${p.anoReferencia},"${p.valorDoacaoCalculado || 0}","${salarioIdoso}","${percentualBeneficio}","${valorNFSE}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
         });
         
         // Notas Fiscais
@@ -1625,6 +1727,140 @@ DETALHES DO CÁLCULO:
       
       return { fileName, path: `C:\\Documentos\\${fileName}` };
     },
+
+    gerarReciboAutomatico: async (pagamentoId: number) => {
+      console.log('📄 Mock API: Gerando recibo automático para pagamento:', pagamentoId);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      try {
+        // Buscar dados do pagamento
+        const pagamentosMock = getPagamentosMock();
+        const pagamento = pagamentosMock.find((p: any) => p.id === pagamentoId);
+        
+        if (!pagamento) {
+          throw new Error('Pagamento não encontrado');
+        }
+        
+        // Buscar dados do idoso
+        const idososMock = getIdososMock();
+        const idoso = idososMock.find((i: any) => i.id === pagamento.idosoId);
+        
+        if (!idoso) {
+          throw new Error('Idoso não encontrado');
+        }
+        
+        // Buscar dados do responsável
+        const responsaveisMock = getResponsaveisMock();
+        const responsavel = responsaveisMock.find((r: any) => r.id === idoso.responsavelId);
+        
+        if (!responsavel) {
+          throw new Error('Responsável não encontrado');
+        }
+        
+        // Calcular valores
+        const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
+        const valorPago = pagamento.valorPago || 0; // Valor da mensalidade paga (ex: R$ 3.225,00)
+        const valorNFSE = salarioIdoso * 0.7; // 70% do salário do idoso (ex: R$ 1.062,60)
+        const valorDoacao = Math.max(0, valorPago - valorNFSE); // Doação (ex: R$ 2.162,40)
+        
+        // Se não há doação ou é idoso SOCIAL, não gerar recibo
+        if (valorDoacao <= 0 || idoso.tipo === 'SOCIAL') {
+          const motivo = idoso.tipo === 'SOCIAL' ? 'Idoso SOCIAL não gera recibo (prefeitura paga o restante)' : 'Não há doação para gerar recibo';
+          console.log(`ℹ️ Mock API: ${motivo}`);
+          return { 
+            success: true, 
+            message: motivo,
+            valorDoacao: 0,
+            valorNFSE: valorNFSE,
+            valorPago: valorPago
+          };
+        }
+        
+        // Preparar dados para o recibo
+        const dataRecibo = {
+          numeroNFSE: pagamento.nfse || `AUTO-${pagamentoId}`,
+          valorPagamento: valorDoacao, // Valor da doação (ex: R$ 2.162,40)
+          nomeResponsavel: responsavel.nome,
+          cpfResponsavel: responsavel.cpf,
+          mesReferencia: `${String(pagamento.mesReferencia).padStart(2, '0')}/${pagamento.anoReferencia}`,
+          formaPagamento: pagamento.formaPagamento || 'Transferência bancária',
+          nomeIdoso: idoso.nome,
+          tipoIdoso: idoso.tipo || 'REGULAR',
+          // Dados adicionais para o recibo
+          salarioIdoso: salarioIdoso, // Salário do idoso (ex: R$ 1.518,00)
+          valorNFSE: valorNFSE, // 70% do salário (ex: R$ 1.062,60)
+          valorTotalPago: valorPago, // Mensalidade paga (ex: R$ 3.225,00)
+          valorDoacao: valorDoacao // Doação (ex: R$ 2.162,40)
+        };
+        
+        // Converter valor para extenso
+        const valorPorExtenso = extenso(valorDoacao, { mode: 'currency' });
+        
+        const dataComExtenso = {
+          ...dataRecibo,
+          valorPorExtenso: valorPorExtenso
+        };
+        
+        // Gerar HTML usando template
+        const htmlContent = getReciboMensalidadeHtml(dataComExtenso);
+        
+        // Criar nome do arquivo
+        const fileName = `RECIBO_DOACAO_${idoso.nome.replace(/\s+/g, '_')}_${dataRecibo.mesReferencia.replace('/', '_')}.html`;
+        
+        // Criar nova janela para impressão
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(htmlContent);
+          printWindow.document.close();
+          
+          // Aguardar carregamento e abrir diálogo de impressão
+          printWindow.onload = () => {
+            setTimeout(() => {
+              printWindow.print();
+              // Fechar janela após impressão
+              setTimeout(() => {
+                printWindow.close();
+              }, 1000);
+            }, 500);
+          };
+        }
+        
+        // Também criar um arquivo HTML para download
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('✅ Mock API: Recibo automático gerado com sucesso!');
+        logInfo('MOCK_API', 'Recibo automático gerado', {
+          pagamentoId,
+          idoso: idoso.nome,
+          valorDoacao,
+          valorNFSE,
+          valorPago
+        });
+        
+        return { 
+          success: true, 
+          fileName,
+          valorDoacao,
+          valorNFSE,
+          valorPago,
+          message: `Recibo de doação gerado: R$ ${valorDoacao.toFixed(2)}`
+        };
+        
+      } catch (error) {
+        console.error('❌ Mock API: Erro ao gerar recibo automático:', error);
+        logError('MOCK_API', 'Erro ao gerar recibo automático', error instanceof Error ? error.message : String(error));
+        return { success: false, error: error.message };
+      }
+    },
+
     gerarListaIdosos: async (data: any) => {
       console.log('📄 Mock API: Gerando lista de idosos:', data);
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -1674,9 +1910,9 @@ DETALHES DO CÁLCULO:
             status: pagamento?.status || 'PENDENTE',
             valorDoacao: pagamento?.valorDoacaoCalculado ? pagamento.valorDoacaoCalculado.toFixed(2).replace('.', ',') : '0,00',
             // Cálculos - usar dados estruturados do pagamento se disponíveis
-            beneficio: pagamento?.valorBeneficio ? pagamento.valorBeneficio.toFixed(2).replace('.', ',') : (idosoCompleto?.valorMensalidadeBase ? idosoCompleto.valorMensalidadeBase.toFixed(2).replace('.', ',') : '0,00'),
+            beneficio: pagamento?.valorBeneficio ? pagamento.valorBeneficio.toFixed(2).replace('.', ',') : ((idosoCompleto as any)?.beneficioSalario && (idosoCompleto as any).beneficioSalario > 0 ? (idosoCompleto as any).beneficioSalario.toFixed(2).replace('.', ',') : '0,00'),
             percentualBeneficio: pagamento?.percentualBeneficio || 70,
-            valorBeneficio: pagamento?.totalBeneficioAplicado ? pagamento.totalBeneficioAplicado.toFixed(2).replace('.', ',') : (idosoCompleto?.valorMensalidadeBase ? (idosoCompleto.valorMensalidadeBase * 0.7).toFixed(2).replace('.', ',') : '0,00'),
+            valorBeneficio: pagamento?.totalBeneficioAplicado ? pagamento.totalBeneficioAplicado.toFixed(2).replace('.', ',') : ((idosoCompleto as any)?.beneficioSalario && (idosoCompleto as any).beneficioSalario > 0 ? ((idosoCompleto as any).beneficioSalario * 0.7).toFixed(2).replace('.', ',') : '0,00'),
             doacao: pagamento?.valorDoacaoCalculado ? pagamento.valorDoacaoCalculado.toFixed(2).replace('.', ',') : '0,00'
           };
         });

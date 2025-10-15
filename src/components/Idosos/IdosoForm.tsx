@@ -26,6 +26,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import type { Idoso, Responsavel } from '../../electron.d';
 import { identifyDocument, formatDocument } from '../../utils/documentValidation';
+import { useDuplicateCheck } from '../../hooks/useDuplicateCheck';
+import { DuplicateCheckDialog } from '../Common/DuplicateCheckDialog';
 
 // Função para formatação de moeda brasileira
 const formatCurrency = (value: string): string => {
@@ -64,7 +66,8 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
     cpf: '',
     dataNascimento: null as Date | null,
     responsavelId: '',
-    valorMensalidadeBase: '',
+    valorMensalidadeBase: '', // Valor que o idoso paga para estar no lar
+    beneficioSalario: '', // Salário do idoso (usado para calcular 70% na NFSE)
     tipo: 'REGULAR' as 'REGULAR' | 'SOCIAL',
     observacoes: '',
   });
@@ -73,6 +76,15 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
   const [error, setError] = useState<string | null>(null);
   const [documentError, setDocumentError] = useState<string | null>(null);
   const [documentType, setDocumentType] = useState<'CPF' | 'CNPJ' | null>(null);
+  
+  // Estados para verificação de duplicatas
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateData, setDuplicateData] = useState<{
+    newItem: any;
+    existingItems: any[];
+  } | null>(null);
+  
+  const { isChecking, checkIdosoDuplicates } = useDuplicateCheck();
 
   // Resetar formulário quando modal abrir
   useEffect(() => {
@@ -85,6 +97,7 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
           dataNascimento: idoso.dataNascimento ? new Date(idoso.dataNascimento) : null,
           responsavelId: idoso.responsavelId.toString(),
           valorMensalidadeBase: formatCurrency(idoso.valorMensalidadeBase.toString()),
+          beneficioSalario: formatCurrency((idoso as any).beneficioSalario?.toString() || '0'),
           tipo: idoso.tipo || 'REGULAR',
           observacoes: idoso.observacoes || '',
         });
@@ -95,6 +108,7 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
           dataNascimento: null,
           responsavelId: '',
           valorMensalidadeBase: '',
+          beneficioSalario: '',
           tipo: 'REGULAR',
           observacoes: '',
         });
@@ -116,10 +130,24 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
 
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value,
+      };
+      
+      // Para idosos SOCIAL: mensalidade = benefício (mesmo valor)
+      if (field === 'beneficioSalario' && prev.tipo === 'SOCIAL') {
+        newData.valorMensalidadeBase = value;
+      }
+      
+      // Quando tipo muda para SOCIAL: copiar benefício para mensalidade
+      if (field === 'tipo' && value === 'SOCIAL' && prev.beneficioSalario) {
+        newData.valorMensalidadeBase = prev.beneficioSalario;
+      }
+      
+      return newData;
+    });
 
     // Validação automática de documento (CPF/CNPJ) em tempo real
     if (field === 'cpf' && value) {
@@ -167,12 +195,59 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
         throw new Error('Valor da mensalidade deve ser maior que zero');
       }
 
+      if (!formData.beneficioSalario || parseCurrency(formData.beneficioSalario) <= 0) {
+        throw new Error('Benefício (salário do idoso) deve ser maior que zero');
+      }
+
+      // Se estiver editando um idoso existente, não verificar duplicatas
+      if (idoso) {
+        await saveIdoso();
+        return;
+      }
+
+      // Verificar duplicatas antes de salvar
+      try {
+        console.log('🔍 Verificando duplicatas de idoso...');
+        const duplicateResult = await checkIdosoDuplicates(
+          formData.nome.trim(), 
+          formData.cpf || undefined
+        );
+
+        if (duplicateResult.hasDuplicates && duplicateResult.duplicatas.length > 0) {
+          console.log('⚠️ Duplicatas encontradas:', duplicateResult.duplicatas);
+          setDuplicateData({
+            newItem: formData,
+            existingItems: duplicateResult.duplicatas
+          });
+          setDuplicateDialogOpen(true);
+          setLoading(false);
+          return;
+        }
+
+        // Se não há duplicatas, salvar normalmente
+        await saveIdoso();
+      } catch (error) {
+        console.error('❌ Erro ao verificar duplicatas:', error);
+        // Em caso de erro na verificação, salvar normalmente
+        await saveIdoso();
+      }
+
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar idoso');
+      setLoading(false);
+    }
+  };
+
+  // Função para salvar o idoso
+  const saveIdoso = async () => {
+    try {
       const dataToSave = {
         nome: formData.nome.trim(),
         cpf: formData.cpf || null,
         dataNascimento: formData.dataNascimento,
         responsavelId: parseInt(formData.responsavelId),
         valorMensalidadeBase: parseCurrency(formData.valorMensalidadeBase),
+        beneficioSalario: parseCurrency(formData.beneficioSalario),
         tipo: formData.tipo,
         observacoes: formData.observacoes.trim() || null,
       };
@@ -185,12 +260,28 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
 
       onSave();
       onClose();
-
     } catch (err: any) {
       setError(err.message || 'Erro ao salvar idoso');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Função para usar idoso existente
+  const handleUseExisting = (existingIdoso: any) => {
+    console.log('✅ Usando idoso existente:', existingIdoso);
+    setDuplicateDialogOpen(false);
+    setDuplicateData(null);
+    onSave();
+    onClose();
+  };
+
+  // Função para criar novo idoso mesmo com duplicatas
+  const handleCreateNew = async () => {
+    console.log('➕ Criando novo idoso mesmo com duplicatas');
+    setDuplicateDialogOpen(false);
+    setDuplicateData(null);
+    await saveIdoso();
   };
 
   const selectedResponsavel = responsaveis.find(r => r.id.toString() === formData.responsavelId);
@@ -292,8 +383,32 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
                   handleInputChange('valorMensalidadeBase', formatted);
                 }}
                 placeholder="R$ 0,00"
+                disabled={formData.tipo === 'SOCIAL'}
                 error={!formData.valorMensalidadeBase || parseCurrency(formData.valorMensalidadeBase) <= 0}
-                helperText="Digite o valor (ex: R$ 1.062,60)"
+                helperText={
+                  formData.tipo === 'SOCIAL' 
+                    ? "Para idosos SOCIAL: mensalidade = benefício (preenchido automaticamente)"
+                    : "Valor que o idoso paga para estar no lar (ex: R$ 3.225,00)"
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Benefício (Salário do Idoso) *"
+                value={formData.beneficioSalario}
+                onChange={(e) => {
+                  const formatted = formatCurrency(e.target.value);
+                  handleInputChange('beneficioSalario', formatted);
+                }}
+                placeholder="R$ 0,00"
+                error={!formData.beneficioSalario || parseCurrency(formData.beneficioSalario) <= 0}
+                helperText={
+                  formData.tipo === 'SOCIAL' 
+                    ? "Salário do idoso (prefeitura paga o restante) - ex: R$ 1.518,00"
+                    : "Salário do idoso para calcular 70% na NFSE (ex: R$ 1.518,00)"
+                }
               />
             </Grid>
 
@@ -424,6 +539,23 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
             {loading ? 'Salvando...' : (idoso ? 'Atualizar' : 'Salvar')}
           </Button>
         </DialogActions>
+        
+        {/* Diálogo de Verificação de Duplicatas */}
+        {duplicateData && (
+          <DuplicateCheckDialog
+            open={duplicateDialogOpen}
+            onClose={() => {
+              setDuplicateDialogOpen(false);
+              setDuplicateData(null);
+            }}
+            onUseExisting={handleUseExisting}
+            onCreateNew={handleCreateNew}
+            title="Idoso Similar Encontrado"
+            newItem={duplicateData.newItem}
+            existingItems={duplicateData.existingItems}
+            type="idoso"
+          />
+        )}
       </Dialog>
     </LocalizationProvider>
   );

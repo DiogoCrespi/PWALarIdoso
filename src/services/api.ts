@@ -19,6 +19,16 @@ export const api = {
         return await mockElectronAPI.responsaveis.list();
       }
     },
+    
+    verificarDuplicatas: async (nome: string, cpf?: string) => {
+      if (isElectron()) {
+        console.log('🔌 Verificando duplicatas de responsável via Electron');
+        return await window.electronAPI.responsaveis.verificarDuplicatas(nome, cpf);
+      } else {
+        console.log('🎭 Verificando duplicatas de responsável via mock');
+        return await mockElectronAPI.responsaveis.verificarDuplicatas(nome, cpf);
+      }
+    },
 
     create: async (data: any) => {
       if (isElectron()) {
@@ -68,6 +78,16 @@ export const api = {
       } else {
         console.log('🎭 Usando Mock API (desenvolvimento)');
         return await mockElectronAPI.idosos.list();
+      }
+    },
+    
+    verificarDuplicatas: async (nome: string, cpf?: string) => {
+      if (isElectron()) {
+        console.log('🔌 Verificando duplicatas de idoso via Electron');
+        return await window.electronAPI.idosos.verificarDuplicatas(nome, cpf);
+      } else {
+        console.log('🎭 Verificando duplicatas de idoso via mock');
+        return await mockElectronAPI.idosos.verificarDuplicatas(nome, cpf);
       }
     },
 
@@ -161,6 +181,16 @@ export const api = {
       } else {
         console.log('🎭 Simulando geração de recibo');
         return await mockElectronAPI.recibos.gerarDoacao(pagamentoId);
+      }
+    },
+
+    gerarReciboAutomatico: async (pagamentoId: number) => {
+      if (isElectron()) {
+        console.log('🔌 Gerando recibo automático via Electron');
+        return await window.electronAPI.templates.gerarReciboAutomatico(pagamentoId);
+      } else {
+        console.log('🎭 Gerando recibo automático via mock');
+        return await mockElectronAPI.templates.gerarReciboAutomatico(pagamentoId);
       }
     },
 

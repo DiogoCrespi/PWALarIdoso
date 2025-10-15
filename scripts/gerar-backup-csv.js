@@ -62,26 +62,32 @@ async function gerarBackupCSV() {
     let csvContent = '';
     
     // Cabeçalho
-    csvContent += 'TIPO,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,DATA_PAGAMENTO,ANO_REFERENCIA,MES_REFERENCIA,OBSERVACOES\n';
+    csvContent += 'TIPO,ID,NOME,CPF,TELEFONE,EMAIL,DATA_NASCIMENTO,MENSALIDADE_BASE,BENEFICIO_SALARIO,TIPO_IDOSO,ATIVO,RESPONSAVEL_ID,RESPONSAVEL_NOME,RESPONSAVEL_CPF,STATUS_PAGAMENTO,VALOR_PAGO,NFSE,PAGADOR,FORMA_PAGAMENTO,DATA_PAGAMENTO,MES_REFERENCIA,ANO_REFERENCIA,VALOR_DOACAO,SALARIO_IDOSO,PERCENTUAL_BENEFICIO,VALOR_NFSE,OBSERVACOES,CRIADO_EM,ATUALIZADO_EM\n';
     
     // Responsáveis
     responsaveis.forEach(r => {
-      csvContent += `RESPONSAVEL,"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,,,,,,\n`;
+      csvContent += `RESPONSAVEL,${r.id},"${r.nome}","${r.cpf}","${r.contatoTelefone || ''}","${r.contatoEmail || ''}",,,,,,,,${r.ativo ? 'ATIVO' : 'INATIVO'},,,,,,,,,,,"${r.createdAt}","${r.updatedAt}"\n`;
     });
     
     // Idosos
     idosos.forEach(i => {
-      csvContent += `IDOSO,"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento ? i.dataNascimento.toISOString().split('T')[0] : ''}","${i.valorMensalidadeBase}",,,,,,,"${i.observacoes || ''}"\n`;
+      csvContent += `IDOSO,${i.id},"${i.nome}","${i.cpf || ''}","","","${i.dataNascimento ? i.dataNascimento.toISOString().split('T')[0] : ''}","${i.valorMensalidadeBase}","${i.beneficioSalario || 0}","${i.tipo || 'REGULAR'}","${i.ativo ? 'ATIVO' : 'INATIVO'}",${i.responsavelId},"${i.responsavel?.nome || ''}","${i.responsavel?.cpf || ''}",,,,,,,,,,"${i.createdAt}","${i.updatedAt}"\n`;
     });
     
     // Pagamentos
     pagamentos.forEach(p => {
-      csvContent += `PAGAMENTO,"${p.idoso.nome}","${p.idoso.cpf || ''}","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.dataPagamento ? p.dataPagamento.toISOString().split('T')[0] : ''}","${p.anoReferencia}","${p.mesReferencia}","${p.observacoes || ''}"\n`;
+      // Calcular valores de benefício
+      const salarioIdoso = p.idoso.beneficioSalario && p.idoso.beneficioSalario > 0 ? p.idoso.beneficioSalario : 0;
+      const percentualBeneficio = 70;
+      const valorNFSE = salarioIdoso * (percentualBeneficio / 100);
+      const valorDoacao = Math.max(0, p.valorPago - valorNFSE);
+      
+      csvContent += `PAGAMENTO,${p.id},"${p.idoso.nome}","","","","","","","","","","","${p.status}","${p.valorPago}","${p.nfse || ''}","${p.pagador || ''}","${p.formaPagamento || ''}","${p.dataPagamento ? p.dataPagamento.toISOString().split('T')[0] : ''}","${p.mesReferencia}","${p.anoReferencia}","${valorDoacao}","${salarioIdoso}","${percentualBeneficio}","${valorNFSE}","${p.observacoes || ''}","${p.createdAt}","${p.updatedAt}"\n`;
     });
     
     // Configurações
     configuracoes.forEach(c => {
-      csvContent += `CONFIGURACAO,"${c.descricao}","${c.chave}","","","","","","","","","","","${c.valor}"\n`;
+      csvContent += `CONFIGURACAO,${c.id},"${c.chave}","","","","","","","","","","","","","","","","","","","","","${c.valor}","${c.descricao || ''}","",""\n`;
     });
 
     // Salvar arquivo

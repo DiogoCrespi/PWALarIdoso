@@ -6,6 +6,9 @@
   "type": "module",
   "author": "Lar dos Idosos",
   "license": "MIT",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -22,7 +25,23 @@
     "test:ui": "vitest --ui",
     "test:watch": "vitest --watch",
     "test:automated": "node tests/automated-test.js",
-    "test:manual": "node tests/manual-test.js"
+    "test:manual": "node tests/manual-test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:duplicates": "node tests/duplicate-check-automated.js",
+    "test:duplicates:simple": "node tests/test-duplicates-simple.js",
+    "test:social": "node tests/test-idosos-social.js",
+    "test:social:simple": "node tests/test-social-simple.js",
+    "test:basic": "node tests/test-basic.js",
+    "test:social:manual": "node tests/test-social-manual.js",
+    "test:navigation": "node tests/test-navigation.js",
+    "test:create-users": "node tests/test-create-users.js",
+    "test:simple-creation": "node tests/test-simple-creation.js",
+    "clean": "node cleanup.js",
+    "clean:prisma": "node scripts/clean-prisma.js",
+    "clean:full": "node scripts/clean-database.js"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",
@@ -43,6 +62,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
@@ -58,7 +78,7 @@
     "electron-builder": "^24.9.1",
     "jsdom": "^23.0.1",
     "prisma": "^5.7.1",
-    "puppeteer": "^24.24.0",
+    "puppeteer": "^24.25.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
