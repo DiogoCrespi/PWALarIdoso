@@ -63,6 +63,11 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
   const [idososList, setIdososList] = useState<any[]>([]);
   const [loadingIdosos, setLoadingIdosos] = useState(false);
   
+  // Estados para autocomplete de responsáveis
+  const [responsaveisList, setResponsaveisList] = useState<any[]>([]);
+  const [loadingResponsaveis, setLoadingResponsaveis] = useState(false);
+  const [responsavelSelecionado, setResponsavelSelecionado] = useState<any>(null);
+  
   // Estado para regra de 70%
   const [aplicarRegra70, setAplicarRegra70] = useState(true);
 
@@ -79,9 +84,24 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
     }
   };
 
-  // Carregar idosos quando o componente montar
+  // ✅ NOVO: Carregar lista de responsáveis para autocomplete
+  const loadResponsaveis = async () => {
+    try {
+      setLoadingResponsaveis(true);
+      const responsaveis = await window.electronAPI.responsaveis.list();
+      setResponsaveisList(responsaveis.filter((r: any) => r.ativo)); // Apenas ativos
+      console.log('✅ Responsáveis carregados:', responsaveis.length);
+    } catch (error) {
+      console.error('Erro ao carregar responsáveis:', error);
+    } finally {
+      setLoadingResponsaveis(false);
+    }
+  };
+
+  // Carregar idosos e responsáveis quando o componente montar
   useEffect(() => {
     loadIdosos();
+    loadResponsaveis();
   }, []);
 
   // Gerar lista de meses para seleção
@@ -138,7 +158,22 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
         geminiConfigured ? getGeminiApiKey() : undefined
       );
       
-      console.log('✅ Dados extraídos da NFSE:', extractedData);
+      // ⚠️ IMPORTANTE: Se fallback, MOSTRAR AVISO mas PERMITIR edição
+      if (extractedData._fallback) {
+        console.warn('⚠️ FALLBACK ATIVO - Gemini falhou, usando dados estimados');
+        console.warn('📝 Alguns campos foram preenchidos baseado no nome do arquivo');
+        console.warn('💡 Usuário DEVE revisar e corrigir os valores antes de salvar!');
+        
+        // ⚠️ IMPORTANTE: NÃO preencher o valor - é o que mais erra!
+        extractedData.valor = 0; // Deixar vazio para usuário preencher
+        console.warn('💰 Valor NÃO foi preenchido - usuário deve preencher manualmente');
+        
+        // Manter outros dados mas mostrar aviso claro
+        setError('⚠️ API Gemini indisponível. Dados foram estimados do nome do arquivo. PREENCHA O VALOR manualmente!');
+      }
+      
+      // ✅ Gemini funcionou - dados são REAIS do PDF
+      console.log('✅ Dados extraídos CORRETAMENTE pela Gemini:', extractedData);
 
       setExtractedData(extractedData);
       
@@ -166,6 +201,12 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
   };
 
   const handleConfirm = () => {
+    // Validar que extractedData existe
+    if (!extractedData) {
+      setError('Nenhum dado extraído. Por favor, faça upload de um arquivo NFSE.');
+      return;
+    }
+
     // Validar campos obrigatórios
     if (!extractedData.numeroNFSE || !idosoNome || !responsavelNome || !responsavelCpf || !mesReferencia) {
       setError('Preencha todos os campos obrigatórios: NFSE, Idoso, Responsável, CPF e Mês/Ano');
@@ -294,9 +335,11 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                     Aplicar Regra de 70%
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {aplicarRegra70 
-                      ? `Valor será reduzido para 70% (R$ ${((extractedData.valor || 0) * 0.7).toFixed(2)})`
-                      : `Valor será mantido integral (R$ ${(extractedData.valor || 0).toFixed(2)})`
+                    {(extractedData?.valor || 0) > 0
+                      ? (aplicarRegra70 
+                          ? `Valor será reduzido para 70% (R$ ${((extractedData.valor || 0) * 0.7).toFixed(2)})`
+                          : `Valor será mantido integral (R$ ${(extractedData.valor || 0).toFixed(2)})`)
+                      : 'Preencha o valor para ver o cálculo'
                     }
                   </Typography>
                 </Box>
@@ -308,6 +351,26 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
             {uploadedFile.name}
           </Typography>
 
+          {/* Aviso quando fallback está ativo */}
+          {extractedData?._fallback && (
+            <Alert severity="warning" sx={{ my: 2 }}>
+              <Typography variant="body2" fontWeight="bold" gutterBottom>
+                ⚠️ Extração Parcial - Preencha os Campos Faltantes
+              </Typography>
+              <Typography variant="body2">
+                A API Gemini está indisponível (limite atingido). Alguns dados foram extraídos do nome do arquivo:
+              </Typography>
+              <Box component="ul" sx={{ mt: 1, mb: 0, pl: 3 }}>
+                <li><strong>✅ Número NFSE e Nome:</strong> Extraídos do nome do arquivo (confiáveis)</li>
+                <li><strong>⚠️ Data:</strong> Data atual - PODE ESTAR ERRADA, revise!</li>
+                <li><strong>❌ Valor:</strong> NÃO foi preenchido - PREENCHA MANUALMENTE!</li>
+              </Box>
+              <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold', color: 'error.main' }}>
+                O campo VALOR está vazio e DEVE ser preenchido manualmente!
+              </Typography>
+            </Alert>
+          )}
+
           <Divider sx={{ my: 2 }} />
 
           <Grid container spacing={2}>
@@ -315,8 +378,8 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
               <TextField
                 fullWidth
                 label="Número da NFSE"
-                value={extractedData.numeroNFSE || ''}
-                onChange={(e) => setExtractedData((prev: any) => ({ ...prev, numeroNFSE: e.target.value }))}
+                value={extractedData?.numeroNFSE || ''}
+                onChange={(e) => setExtractedData((prev: any) => prev ? { ...prev, numeroNFSE: e.target.value } : prev)}
                 required
               />
             </Grid>
@@ -377,8 +440,8 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
               <TextField
                 fullWidth
                 label="Data da Prestação"
-                value={extractedData.dataPrestacao || ''}
-                onChange={(e) => setExtractedData((prev: any) => ({ ...prev, dataPrestacao: e.target.value }))}
+                value={extractedData?.dataPrestacao || ''}
+                onChange={(e) => setExtractedData((prev: any) => prev ? { ...prev, dataPrestacao: e.target.value } : prev)}
                 required
               />
             </Grid>
@@ -387,21 +450,70 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
               <TextField
                 fullWidth
                 label="Data de Emissão"
-                value={extractedData.dataEmissao || ''}
-                onChange={(e) => setExtractedData((prev: any) => ({ ...prev, dataEmissao: e.target.value }))}
+                value={extractedData?.dataEmissao || ''}
+                onChange={(e) => setExtractedData((prev: any) => prev ? { ...prev, dataEmissao: e.target.value } : prev)}
                 placeholder="DD/MM/AAAA"
                 helperText="Data de emissão da NFSE"
               />
             </Grid>
             
+            {/* ✅ MELHORADO: Autocomplete de responsável com lista cadastrada */}
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Responsável*"
-                value={responsavelNome}
-                onChange={(e) => setResponsavelNome(e.target.value)}
-                required
-                helperText="Nome do responsável pelo idoso"
+              <Autocomplete
+                freeSolo
+                options={responsaveisList}
+                getOptionLabel={(option) => {
+                  if (typeof option === 'string') return option;
+                  return option.nome || '';
+                }}
+                value={responsavelSelecionado}
+                onChange={(event, newValue) => {
+                  if (typeof newValue === 'string') {
+                    // Digitou um novo nome
+                    setResponsavelSelecionado(null);
+                    setResponsavelNome(newValue);
+                    setResponsavelCpf('');
+                  } else if (newValue) {
+                    // Selecionou um responsável existente
+                    setResponsavelSelecionado(newValue);
+                    setResponsavelNome(newValue.nome);
+                    setResponsavelCpf(newValue.cpf || '');
+                    console.log('✅ Responsável selecionado:', newValue.nome, 'CPF:', newValue.cpf);
+                  } else {
+                    setResponsavelSelecionado(null);
+                    setResponsavelNome('');
+                    setResponsavelCpf('');
+                  }
+                }}
+                onInputChange={(event, newInputValue) => {
+                  if (!responsavelSelecionado) {
+                    setResponsavelNome(newInputValue);
+                  }
+                }}
+                loading={loadingResponsaveis}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Responsável *"
+                    required
+                    helperText="Selecione da lista ou digite um novo"
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <Box component="li" key={key} {...otherProps}>
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {option.nome}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          CPF: {option.cpf || 'Não informado'} • {option.idosos?.length || 0} idoso(s)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                }}
               />
             </Grid>
             
@@ -413,7 +525,13 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                 onChange={(e) => setResponsavelCpf(e.target.value)}
                 required
                 placeholder="000.000.000-00"
-                helperText="CPF ou CNPJ do responsável"
+                helperText={responsavelSelecionado ? "✅ Preenchido automaticamente" : "CPF ou CNPJ do responsável"}
+                disabled={!!responsavelSelecionado && !!responsavelSelecionado.cpf}
+                InputProps={{
+                  style: { 
+                    backgroundColor: responsavelSelecionado ? '#f0f7ff' : 'transparent' 
+                  }
+                }}
               />
             </Grid>
             
@@ -421,8 +539,8 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
               <TextField
                 fullWidth
                 label="Discriminação do Serviço"
-                value={extractedData.discriminacao || ''}
-                onChange={(e) => setExtractedData((prev: any) => ({ ...prev, discriminacao: e.target.value }))}
+                value={extractedData?.discriminacao || ''}
+                onChange={(e) => setExtractedData((prev: any) => prev ? { ...prev, discriminacao: e.target.value } : prev)}
                 multiline
                 rows={2}
                 required
@@ -434,12 +552,18 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                 fullWidth
                 label="Valor"
                 type="number"
-                value={extractedData.valor || ''}
-                onChange={(e) => setExtractedData((prev: any) => ({ ...prev, valor: parseFloat(e.target.value) }))}
+                value={extractedData?.valor || ''}
+                onChange={(e) => setExtractedData((prev: any) => prev ? { ...prev, valor: parseFloat(e.target.value) } : prev)}
                 InputProps={{
                   startAdornment: 'R$ '
                 }}
                 required
+                error={extractedData?._fallback && (!extractedData?.valor || extractedData.valor === 0)}
+                helperText={
+                  extractedData?._fallback && (!extractedData?.valor || extractedData.valor === 0)
+                    ? "⚠️ OBRIGATÓRIO: Valor não foi extraído automaticamente. Preencha manualmente!"
+                    : "Valor líquido da nota fiscal"
+                }
               />
             </Grid>
             
@@ -504,7 +628,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
             <Button 
               variant="contained" 
               onClick={handleConfirm}
-              disabled={!extractedData.numeroNFSE || !idosoNome || !responsavelNome || !responsavelCpf || !mesReferencia}
+              disabled={!extractedData || !extractedData.numeroNFSE || !idosoNome || !responsavelNome || !responsavelCpf || !mesReferencia}
             >
               Confirmar e Processar
             </Button>

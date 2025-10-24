@@ -57,35 +57,40 @@ export default function DashboardGrid({ idosos, pagamentos, onCellClick }: Dashb
               </TableCell>
             </TableRow>
           ) : (
-            idosos.map((idoso) => (
-              <TableRow key={idoso.id} hover>
-                <TableCell
-                  sx={{
-                    fontWeight: 'medium',
-                    position: 'sticky',
-                    left: 0,
-                    backgroundColor: 'background.paper',
-                    zIndex: 1,
-                  }}
-                >
-                  {idoso.nome}
-                </TableCell>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mes) => {
-                  const pag = pagamentos[idoso.id]?.[mes];
-                  const status = (pag?.status || 'PENDENTE') as 'PAGO' | 'PARCIAL' | 'PENDENTE';
+            idosos.map((idoso, index) => {
+              // Usar uma chave única combinando ID e índice (fallback para índice se ID não existir)
+              const uniqueKey = idoso.id ? `idoso-${idoso.id}` : `idoso-temp-${index}`;
+              
+              return (
+                <TableRow key={uniqueKey} hover>
+                  <TableCell
+                    sx={{
+                      fontWeight: 'medium',
+                      position: 'sticky',
+                      left: 0,
+                      backgroundColor: 'background.paper',
+                      zIndex: 1,
+                    }}
+                  >
+                    {idoso.nome}
+                  </TableCell>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mes) => {
+                    const pag = pagamentos[idoso.id]?.[mes];
+                    const status = (pag?.status || 'PENDENTE') as 'PAGO' | 'PARCIAL' | 'PENDENTE';
 
-                  return (
-                    <TableCell key={mes} sx={{ padding: 0 }}>
-                      <DashboardCell
-                        status={status}
-                        nfse={pag?.nfse}
-                        onClick={() => onCellClick(idoso.id, mes)}
-                      />
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))
+                    return (
+                      <TableCell key={mes} sx={{ padding: 0 }}>
+                        <DashboardCell
+                          status={status}
+                          nfse={pag?.nfse}
+                          onClick={() => onCellClick(idoso.id, mes)}
+                        />
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>

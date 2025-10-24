@@ -285,14 +285,33 @@ export default function PaymentModal({
         geminiConfigured ? getGeminiApiKey() : undefined
       );
       
-      console.log('✅ Dados extraídos:', extractedData);
+      // ⚠️ IMPORTANTE: Se fallback, NÃO MOSTRAR NADA - só avisar erro
+      if (extractedData._fallback) {
+        console.error('❌ FALLBACK ATIVO - Gemini falhou, limite atingido!');
+        console.error('⚠️ NÃO vou usar dados mockados - eles só confundem!');
+        
+        // NÃO salvar extractedData mockado
+        setExtractedData(null);
+        setUploadedFile(null);
+        
+        setError('Limite da API Gemini atingido. A extração automática falhou. Por favor, preencha manualmente todos os campos com os dados corretos do PDF.');
+        
+        showSnackbar(
+          '⚠️ Limite de API atingido! Aguarde 1 minuto e tente novamente, ou preencha manualmente os campos.',
+          'error'
+        );
+        return; // Parar aqui - não usar dados mockados
+      }
+      
+      // ✅ Gemini funcionou - dados são REAIS do PDF
+      console.log('✅ Dados extraídos CORRETAMENTE pela Gemini:', extractedData);
 
       // Limpar qualquer erro anterior
       setError(null);
 
       setExtractedData(extractedData);
       
-      // Preencher automaticamente os campos do formulário
+      // ✅ Gemini funcionou - Preencher automaticamente os campos do formulário
       setFormData(prev => ({
         ...prev,
         valorPago: extractedData.valor.toString(),
@@ -311,7 +330,7 @@ export default function PaymentModal({
         mesReferencia: extractedData.mesReferencia
       });
       
-      // Salvar dados extraídos no banco para reutilização futura
+      // Salvar dados extraídos no banco para reutilização futura (apenas se Gemini funcionou)
       if (idoso) {
         try {
           await window.electronAPI.pagamentos.upsert({
@@ -326,9 +345,13 @@ export default function PaymentModal({
             observacoes: extractedData.discriminacao,
           });
           console.log('💾 PaymentModal: Dados extraídos salvos no banco para reutilização');
+          showSnackbar('✅ Dados extraídos e salvos com sucesso!', 'success');
         } catch (error) {
           console.error('❌ PaymentModal: Erro ao salvar dados extraídos:', error);
+          showSnackbar('✅ Dados extraídos, mas erro ao salvar automaticamente', 'warning');
         }
+      } else {
+        showSnackbar('✅ Dados extraídos com sucesso pela Gemini!', 'success');
       }
       
     } catch (err) {
@@ -344,12 +367,23 @@ export default function PaymentModal({
       // Normalizar valor extraído
       const valorNormalizado = normalizeValue(extractedData.valor);
       
-      // Validar valor: não pode exceder 70% do salário do idoso (para todos os tipos)
-      const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0;
+      // ✅ MELHORADO: Validação mais flexível - avisar mas permitir
+      const salarioIdoso = idoso.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0;
       const valorMaximo = salarioIdoso * 0.7;
-      if (valorNormalizado > valorMaximo) {
-        setError(`Valor da NFSE (R$ ${valorNormalizado.toFixed(2)}) não pode exceder 70% do salário do idoso (R$ ${valorMaximo.toFixed(2)})`);
+      
+      // Se valor exceder MUITO (mais de 10%), bloquear
+      if (valorNormalizado > valorMaximo * 1.1) {
+        setError(`Valor da NFSE (R$ ${valorNormalizado.toFixed(2)}) excede em mais de 10% o limite de 70% do salário (R$ ${valorMaximo.toFixed(2)}). Verifique se o PDF está correto ou atualize o benefício do idoso.`);
         return;
+      }
+      
+      // Se valor estiver diferente mas dentro de 10%, apenas avisar
+      if (Math.abs(valorNormalizado - valorMaximo) > 1) {
+        console.warn('⚠️ Valor da NFSE diferente do esperado:', {
+          valorExtraido: valorNormalizado,
+          valorEsperado: valorMaximo,
+          diferenca: Math.abs(valorNormalizado - valorMaximo)
+        });
       }
       
       setFormData(prev => ({
@@ -404,7 +438,7 @@ export default function PaymentModal({
       console.log('🔍 Validando pagamento para idoso:', idoso.nome, 'tipo:', idoso.tipo);
       
       // Calcular salário do idoso para validações e cálculos
-      const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso
+      const salarioIdoso = idoso.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0; // Salário do idoso
       console.log('💰 Cálculo de pagamento - salarioIdoso:', salarioIdoso, 'valorPago:', valorPago);
       
       // Para idosos SOCIAL: valor pago deve ser igual ao salário (não pode exceder)
@@ -476,7 +510,7 @@ export default function PaymentModal({
           await new Promise(resolve => setTimeout(resolve, 500));
           
           // Buscar o ID do pagamento salvo
-          const pagamentoId = resultado?.id || pagamentoExistente?.id;
+          const pagamentoId = (resultado as any)?.id || pagamentoExistente?.id;
           
           if (pagamentoId) {
             const reciboResult = await api.recibos.gerarReciboAutomatico(pagamentoId);
@@ -552,14 +586,19 @@ export default function PaymentModal({
     }
   };
 
-  const salarioIdoso = (idoso as any)?.beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0;
+  // ✅ CORRIGIDO: Cálculos de benefício com arredondamento preciso
+  const salarioIdoso = idoso?.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0;
   const valorPago = parseFloat(formData.valorPago) || 0;
   
   // Cálculos estruturados de benefício
   const valorBeneficio = salarioIdoso;
   const percentualBeneficio = 70; // Percentual padrão
-  const totalBeneficioAplicado = valorBeneficio * (percentualBeneficio / 100);
-  const valorDoacao = Math.max(0, valorPago - totalBeneficioAplicado);
+  const totalBeneficioAplicado = Math.round(valorBeneficio * (percentualBeneficio / 100) * 100) / 100; // 70% do salário (limite NFSE)
+  const valorDoacao = Math.max(0, Math.round((valorPago - totalBeneficioAplicado) * 100) / 100); // Diferença é doação
+  
+  // Explicação dos valores
+  const temBeneficio = salarioIdoso > 0;
+  const tipoIdoso = idoso?.tipo || 'REGULAR';
   
   const status = valorPago >= salarioIdoso ? 'PAGO' : valorPago > 0 ? 'PARCIAL' : 'PENDENTE';
 
@@ -772,25 +811,60 @@ export default function PaymentModal({
 
                       {extractedData && (
                         <Box sx={{ mt: 2, p: 2, backgroundColor: 'success.50', borderRadius: 1 }}>
+                          {/* ⚠️ Alerta se fallback foi usado */}
+                          {extractedData._fallback && (
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                ⚠️ Extração Automática FALHOU!
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontSize: '0.85em', mt: 0.5 }}>
+                                A API Gemini não conseguiu extrair os dados do PDF (limite de requisições excedido).<br />
+                                Os valores abaixo são <strong>ESTIMATIVAS</strong> e provavelmente estão <strong>INCORRETOS</strong>.<br />
+                                <strong>Por favor, verifique e ajuste MANUALMENTE cada campo!</strong>
+                              </Typography>
+                            </Alert>
+                          )}
+                          
                           <Typography variant="subtitle2" gutterBottom>
-                            Dados Extraídos:
+                            Dados Extraídos da NFSE:
                           </Typography>
                           <Typography variant="body2">
                             <strong>NFSE:</strong> {extractedData.numeroNFSE}
                           </Typography>
                           <Typography variant="body2">
-                            <strong>Valor:</strong> R$ {extractedData.valor.toFixed(2)}
+                            <strong>Valor NFSE:</strong> R$ {extractedData.valor.toFixed(2)}
+                            {salarioIdoso > 0 && (
+                              <Typography 
+                                component="span" 
+                                sx={{ 
+                                  ml: 1, 
+                                  fontSize: '0.85em', 
+                                  color: Math.abs(extractedData.valor - (salarioIdoso * 0.7)) > 1 ? 'error.main' : 'success.main',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                {Math.abs(extractedData.valor - (salarioIdoso * 0.7)) > 1 
+                                  ? `⚠️ Esperado: R$ ${(salarioIdoso * 0.7).toFixed(2)} (70% do benefício)`
+                                  : '✓ Correto'}
+                              </Typography>
+                            )}
                           </Typography>
                           <Typography variant="body2">
-                            <strong>Data:</strong> {extractedData.dataPrestacao}
+                            <strong>Data de Prestação:</strong> {extractedData.dataPrestacao}
+                            {extractedData.dataEmissao && extractedData.dataEmissao !== extractedData.dataPrestacao && (
+                              <Typography component="span" sx={{ ml: 1, fontSize: '0.85em', color: 'text.secondary' }}>
+                                (Emissão: {extractedData.dataEmissao})
+                              </Typography>
+                            )}
                           </Typography>
                           <Typography variant="body2">
                             <strong>Pagador:</strong> {extractedData.nomePessoa}
                           </Typography>
                           
-                          {/* Indicador de validação do idoso */}
+                          {/* Validações */}
                           {idoso && (
-                            <Box sx={{ mt: 1 }}>
+                            <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {/* Validação do nome */}
                               {extractedData.nomePessoa === idoso.nome || extractedData.nomePessoa === idoso.responsavel?.nome ? (
                                 <Chip
                                   label="✅ NFSE do idoso correto"
@@ -805,6 +879,24 @@ export default function PaymentModal({
                                   size="small"
                                   variant="outlined"
                                 />
+                              )}
+                              
+                              {/* Validação do valor */}
+                              {salarioIdoso > 0 && Math.abs(extractedData.valor - (salarioIdoso * 0.7)) > 1 && (
+                                <Alert severity="warning" sx={{ mt: 1 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                    ⚠️ Valor da NFSE Diferente do Esperado
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontSize: '0.85em', mt: 0.5 }}>
+                                    • Valor extraído: <strong>R$ {extractedData.valor.toFixed(2)}</strong><br />
+                                    • Valor esperado (70% do benefício): <strong>R$ {(salarioIdoso * 0.7).toFixed(2)}</strong><br />
+                                    • Diferença: <strong>R$ {Math.abs(extractedData.valor - (salarioIdoso * 0.7)).toFixed(2)}</strong>
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontSize: '0.85em', mt: 1, fontStyle: 'italic' }}>
+                                    Verifique se o PDF está correto ou se o valor do benefício do idoso mudou.<br />
+                                    Você pode ajustar manualmente o campo "Valor Pago" abaixo.
+                                  </Typography>
+                                </Alert>
                               )}
                             </Box>
                           )}
@@ -873,6 +965,7 @@ export default function PaymentModal({
                   color={getStatusColor(status) as any}
                   size="small"
                 />
+                {/* ✅ CORRIGIDO: Chips com valores corretos e explicações */}
                 {valorDoacao > 0 && (
                   <Chip
                     label={`Doação: R$ ${valorDoacao.toFixed(2)}`}
@@ -881,12 +974,24 @@ export default function PaymentModal({
                     variant="outlined"
                   />
                 )}
-                <Chip
-                  label={`Limite: R$ ${(salarioIdoso * 0.7).toFixed(2)} (70%)`}
-                  color="warning"
-                  size="small"
-                  variant="outlined"
-                />
+                
+                {temBeneficio ? (
+                  <Chip
+                    label={`Limite NFSE: R$ ${totalBeneficioAplicado.toFixed(2)} (70% do benefício)`}
+                    color="warning"
+                    size="small"
+                    variant="outlined"
+                    title={`70% de R$ ${salarioIdoso.toFixed(2)} = R$ ${totalBeneficioAplicado.toFixed(2)}`}
+                  />
+                ) : (
+                  <Chip
+                    label="Sem benefício: valor total é doação"
+                    color="default"
+                    size="small"
+                    variant="outlined"
+                    title="Este idoso não tem benefício/salário cadastrado, portanto todo o valor pago é considerado doação"
+                  />
+                )}
               </Box>
             </Grid>
 
@@ -922,6 +1027,7 @@ export default function PaymentModal({
                 slotProps={{
                   textField: {
                     fullWidth: true,
+                    helperText: 'Data em que o pagamento foi realizado (data de prestação do serviço)',
                   },
                 }}
               />
@@ -945,7 +1051,8 @@ export default function PaymentModal({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    placeholder: "Data de emissão da NFSE"
+                    placeholder: "Data de emissão da NFSE",
+                    helperText: 'Data em que a nota fiscal foi emitida (pode ser diferente do pagamento)',
                   },
                 }}
               />

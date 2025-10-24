@@ -29,7 +29,7 @@ import { identifyDocument, formatDocument } from '../../utils/documentValidation
 import { useDuplicateCheck } from '../../hooks/useDuplicateCheck';
 import { DuplicateCheckDialog } from '../Common/DuplicateCheckDialog';
 
-// Função para formatação de moeda brasileira
+// Função para formatação de moeda brasileira (para entrada do usuário)
 const formatCurrency = (value: string): string => {
   // Remove caracteres não numéricos
   const numericValue = value.replace(/\D/g, '');
@@ -44,6 +44,16 @@ const formatCurrency = (value: string): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(number);
+};
+
+// ✅ CORRIGIDO: Função para formatar valores do banco de dados (já em formato decimal)
+const formatCurrencyFromNumber = (value: number): string => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
 };
 
 // Função para converter valor formatado para número
@@ -91,13 +101,14 @@ export default function IdosoForm({ open, onClose, idoso, onSave }: IdosoFormPro
     if (open) {
       loadResponsaveis();
       if (idoso) {
+        // ✅ CORRIGIDO: Usar formatCurrencyFromNumber para valores do banco de dados
         setFormData({
           nome: idoso.nome,
           cpf: idoso.cpf || '',
           dataNascimento: idoso.dataNascimento ? new Date(idoso.dataNascimento) : null,
-          responsavelId: idoso.responsavelId.toString(),
-          valorMensalidadeBase: formatCurrency(idoso.valorMensalidadeBase.toString()),
-          beneficioSalario: formatCurrency((idoso as any).beneficioSalario?.toString() || '0'),
+          responsavelId: idoso.responsavelId ? idoso.responsavelId.toString() : '',
+          valorMensalidadeBase: formatCurrencyFromNumber(idoso.valorMensalidadeBase),
+          beneficioSalario: formatCurrencyFromNumber(idoso.beneficioSalario || 0),
           tipo: idoso.tipo || 'REGULAR',
           observacoes: idoso.observacoes || '',
         });

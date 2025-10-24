@@ -40,7 +40,8 @@ import {
   Warning as WarningIcon,
   Schedule as ScheduleIcon,
   Storage as StorageIcon,
-  CloudDownload as CloudDownloadIcon
+  CloudDownload as CloudDownloadIcon,
+  ContentCopy as ContentCopyIcon
 } from '@mui/icons-material';
 
 interface BackupInfo {
@@ -90,24 +91,68 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
 
   const loadBackups = () => {
     try {
+      console.log('📂 Carregando backups do localStorage...');
       const savedBackups = localStorage.getItem('lar_idosos_backups');
+      
       if (savedBackups) {
+        console.log('📦 Backups encontrados no localStorage:', {
+          tamanho: savedBackups.length,
+          tamanhoKB: (savedBackups.length / 1024).toFixed(2) + ' KB'
+        });
+        
         const parsedBackups = JSON.parse(savedBackups);
+        console.log('✅ Backups parseados:', {
+          quantidade: parsedBackups.length,
+          backups: parsedBackups.map((b: BackupInfo) => ({
+            fileName: b.fileName,
+            timestamp: b.timestamp,
+            hasContent: !!b.content,
+            contentLength: b.content?.length || 0
+          }))
+        });
+        
         setBackups(parsedBackups);
+      } else {
+        console.log('ℹ️ Nenhum backup encontrado no localStorage');
       }
     } catch (error) {
-      console.error('Erro ao carregar backups:', error);
+      console.error('❌ Erro ao carregar backups:', error);
       showSnackbar('Erro ao carregar backups salvos', 'error');
     }
   };
 
   const saveBackups = (backupsList: BackupInfo[]) => {
     try {
-      localStorage.setItem('lar_idosos_backups', JSON.stringify(backupsList));
+      const backupsJSON = JSON.stringify(backupsList);
+      console.log('💾 Tentando salvar backups no localStorage:', {
+        quantidade: backupsList.length,
+        tamanhoTotal: backupsJSON.length,
+        tamanhoMB: (backupsJSON.length / 1024 / 1024).toFixed(2) + ' MB'
+      });
+      
+      localStorage.setItem('lar_idosos_backups', backupsJSON);
       setBackups(backupsList);
-    } catch (error) {
-      console.error('Erro ao salvar backups:', error);
-      showSnackbar('Erro ao salvar lista de backups', 'error');
+      console.log('✅ Backups salvos com sucesso no localStorage');
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar backups no localStorage:', error);
+      
+      // Verificar se é erro de quota
+      if (error.name === 'QuotaExceededError' || error.code === 22) {
+        console.warn('⚠️ LocalStorage cheio! Tentando manter apenas os 5 backups mais recentes...');
+        
+        try {
+          // Manter apenas os 5 backups mais recentes
+          const recentBackups = backupsList.slice(0, 5);
+          localStorage.setItem('lar_idosos_backups', JSON.stringify(recentBackups));
+          setBackups(recentBackups);
+          showSnackbar('Espaço limitado: mantidos apenas os 5 backups mais recentes', 'warning');
+        } catch (retryError) {
+          console.error('❌ Ainda assim falhou:', retryError);
+          showSnackbar('Erro: LocalStorage cheio. Remova alguns backups antigos.', 'error');
+        }
+      } else {
+        showSnackbar('Erro ao salvar lista de backups', 'error');
+      }
     }
   };
 
@@ -126,6 +171,16 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
       
       // Usar a API mock para gerar backup
       const backupData = await window.electronAPI.backup.gerarCSV();
+      console.log('📦 Backup recebido:', {
+        fileName: backupData.fileName,
+        contentLength: backupData.content?.length || 0,
+        stats: backupData.stats
+      });
+      
+      // Validar conteúdo
+      if (!backupData.content || backupData.content.length === 0) {
+        throw new Error('Backup gerado está vazio');
+      }
       
       const backupInfo: BackupInfo = {
         fileName: backupData.fileName,
@@ -135,10 +190,17 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
         size: new Blob([backupData.content]).size
       };
 
+      console.log('💾 Salvando backup:', {
+        fileName: backupInfo.fileName,
+        size: backupInfo.size,
+        contentPreview: backupInfo.content.substring(0, 100)
+      });
+
       // Adicionar à lista de backups
       const updatedBackups = [backupInfo, ...backups];
       saveBackups(updatedBackups);
 
+      console.log('📥 Iniciando download automático...');
       // Fazer download automático
       downloadBackup(backupInfo);
 
@@ -259,34 +321,109 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
 
   const downloadBackup = (backup: BackupInfo) => {
     try {
+      console.log('📥 Iniciando download do backup:', backup.fileName);
+      console.log('📊 Tamanho do conteúdo:', backup.content.length, 'caracteres');
+      
+      // Verificar se há conteúdo
+      if (!backup.content || backup.content.length === 0) {
+        console.error('❌ Backup vazio ou inválido');
+        showSnackbar('Erro: Backup vazio ou inválido', 'error');
+        return;
+      }
+      
+      // Criar o blob com o conteúdo do backup
       const blob = new Blob([backup.content], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
+      console.log('✅ Blob criado com tamanho:', blob.size, 'bytes');
       
-      link.setAttribute('href', url);
-      link.setAttribute('download', backup.fileName);
-      link.style.visibility = 'hidden';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      URL.revokeObjectURL(url);
+      // Método 1: Usar createObjectURL (preferido)
+      try {
+        const url = URL.createObjectURL(blob);
+        console.log('✅ URL criada:', url);
+        
+        // Criar link temporário
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = backup.fileName;
+        link.style.display = 'none';
+        
+        // Adicionar ao DOM, clicar e remover
+        document.body.appendChild(link);
+        console.log('✅ Link adicionado ao DOM');
+        
+        link.click();
+        console.log('✅ Click executado');
+        
+        // Limpar
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+          console.log('✅ Download concluído e recursos liberados');
+        }, 100);
+        
+        showSnackbar('Download iniciado com sucesso!', 'success');
+      } catch (urlError) {
+        console.warn('⚠️ Método 1 falhou, tentando método alternativo...', urlError);
+        
+        // Método 2: Usar data URI (fallback)
+        const reader = new FileReader();
+        reader.onload = function() {
+          const link = document.createElement('a');
+          link.href = reader.result as string;
+          link.download = backup.fileName;
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+          }, 100);
+          
+          showSnackbar('Download iniciado com sucesso!', 'success');
+        };
+        reader.onerror = function(error) {
+          console.error('❌ Erro ao ler blob:', error);
+          showSnackbar('Erro ao processar arquivo para download', 'error');
+        };
+        reader.readAsDataURL(blob);
+      }
     } catch (error) {
-      console.error('Erro ao fazer download do backup:', error);
-      showSnackbar('Erro ao fazer download do backup', 'error');
+      console.error('❌ Erro ao fazer download do backup:', error);
+      showSnackbar('Erro ao fazer download do backup. Verifique o console.', 'error');
     }
   };
 
   const handleRestoreBackup = async (backup: BackupInfo) => {
+    console.log('🔄 handleRestoreBackup chamado');
+    console.log('📦 Backup:', {
+      fileName: backup.fileName,
+      hasContent: !!backup.content,
+      contentLength: backup.content?.length || 0,
+      stats: backup.stats
+    });
+    
     setLoading(true);
     try {
       console.log('🔄 Iniciando restauração do backup:', backup.fileName);
       
+      // Validar se há conteúdo
+      if (!backup.content || backup.content.length === 0) {
+        console.error('❌ Backup sem conteúdo!');
+        showSnackbar('Erro: Backup vazio. Não é possível restaurar.', 'error');
+        return;
+      }
+      
+      console.log('📤 Enviando para API importarDadosDoCSV...');
       // Importar dados do CSV usando a API
       const resultado = await window.electronAPI.backup.importarDadosDoCSV(backup.content);
+      console.log('📥 Resultado da importação:', resultado);
       
       if (resultado.success) {
+        console.log('✅ Importação bem-sucedida!');
         showSnackbar(
           `Backup restaurado com sucesso! Responsáveis: ${resultado.responsaveisImportados}, Idosos: ${resultado.idososImportados}, Pagamentos: ${resultado.pagamentosImportados}, Notas Fiscais: ${resultado.notasFiscaisImportadas}`,
           'success'
@@ -294,10 +431,12 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
         setRestoreDialog({ open: false, backup: null });
         
         // Recarregar a página para aplicar as mudanças
+        console.log('🔄 Recarregando página em 2 segundos...');
         setTimeout(() => {
           window.location.reload();
         }, 2000);
       } else {
+        console.error('❌ Importação falhou:', resultado.message);
         showSnackbar(`Erro ao restaurar backup: ${resultado.message}`, 'error');
       }
       
@@ -313,6 +452,17 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
     const updatedBackups = backups.filter((_, i) => i !== index);
     saveBackups(updatedBackups);
     showSnackbar('Backup removido da lista', 'info');
+  };
+
+  const handleCopyToClipboard = async (backup: BackupInfo) => {
+    try {
+      await navigator.clipboard.writeText(backup.content);
+      showSnackbar('Conteúdo do backup copiado para a área de transferência!', 'success');
+      console.log('✅ Backup copiado para clipboard');
+    } catch (error) {
+      console.error('❌ Erro ao copiar para clipboard:', error);
+      showSnackbar('Erro ao copiar conteúdo. Tente fazer download.', 'error');
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -579,19 +729,35 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
                               variant="outlined" 
                               color="info"
                             />
-                            <Tooltip title="Baixar">
+                            <Tooltip title="Baixar Arquivo">
                               <IconButton
                                 onClick={() => downloadBackup(backup)}
                                 size="small"
+                                color="primary"
                               >
                                 <DownloadIcon />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Restaurar">
+                            <Tooltip title="Copiar Conteúdo">
                               <IconButton
-                                onClick={() => setRestoreDialog({ open: true, backup })}
+                                onClick={() => handleCopyToClipboard(backup)}
+                                size="small"
+                                color="info"
+                              >
+                                <ContentCopyIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Restaurar Backup">
+                              <IconButton
+                                onClick={() => {
+                                  console.log('🔄 Clicou no botão Restaurar:', backup.fileName);
+                                  console.log('📊 Backup stats:', backup.stats);
+                                  console.log('📦 Has content:', !!backup.content, 'Length:', backup.content?.length || 0);
+                                  setRestoreDialog({ open: true, backup });
+                                }}
                                 size="small"
                                 color="warning"
+                                disabled={loading}
                               >
                                 <RestoreIcon />
                               </IconButton>
@@ -679,7 +845,15 @@ const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
             Cancelar
           </Button>
           <Button
-            onClick={() => restoreDialog.backup && handleRestoreBackup(restoreDialog.backup)}
+            onClick={() => {
+              console.log('🔘 Botão "Restaurar Backup" clicado no dialog');
+              console.log('📦 restoreDialog.backup:', restoreDialog.backup?.fileName);
+              if (restoreDialog.backup) {
+                handleRestoreBackup(restoreDialog.backup);
+              } else {
+                console.error('❌ Nenhum backup selecionado!');
+              }
+            }}
             color="warning"
             variant="contained"
             disabled={loading}

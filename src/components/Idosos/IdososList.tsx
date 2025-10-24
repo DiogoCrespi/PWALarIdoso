@@ -318,8 +318,12 @@ export default function IdososList({ onRefresh }: IdososListProps) {
         </Card>
       ) : (
         <Grid container spacing={3}>
-          {filteredIdosos.map((idoso) => (
-            <Grid item xs={12} sm={6} md={4} key={idoso.id}>
+          {filteredIdosos.map((idoso, index) => {
+            // Gerar chave única (fallback para índice se ID não existir)
+            const uniqueKey = idoso.id ? `idoso-${idoso.id}` : `idoso-temp-${index}`;
+            
+            return (
+            <Grid item xs={12} sm={6} md={4} key={uniqueKey}>
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent sx={{ flexGrow: 1 }}>
                   {/* Header do card */}
@@ -427,7 +431,8 @@ export default function IdososList({ onRefresh }: IdososListProps) {
                 </CardContent>
               </Card>
             </Grid>
-          ))}
+            );
+          })}
         </Grid>
       )}
 

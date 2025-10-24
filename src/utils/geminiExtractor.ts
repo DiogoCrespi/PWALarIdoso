@@ -11,6 +11,7 @@ export interface ExtractedNFSEData {
   responsavelNome?: string;
   formaPagamento?: string;
   mesReferencia?: string;
+  _fallback?: boolean; // Indica que os dados vieram do fallback mockado
 }
 
 /**
@@ -51,7 +52,14 @@ Instruções:
 - dataPrestacao: Data de prestação do serviço no formato brasileiro (DD/MM/AAAA)
 - dataEmissao: Data de emissão da NFSE (se diferente da dataPrestacao) no formato DD/MM/AAAA
 - discriminacao: Texto completo da discriminação do serviço
-- valor: Valor total como número decimal usando PONTO (ex: 1062.60, não 1.062,60)
+- valor: ⚠️ MUITO IMPORTANTE - Extraia o "Valor Líquido" da tabela de itens/serviços
+  * Procure por uma TABELA com colunas: "Descrição do Item", "Quantidade", "Valor", "Valor Líquido"
+  * Use SEMPRE o valor da coluna "Valor Líquido" (última coluna da tabela de itens)
+  * Formato: número decimal usando PONTO (ex: 1232.26, NÃO 1.232,26)
+  * Exemplo de tabela no PDF:
+    Descrição do Item | Quantidade | Valor | Desc. | Valor Líquido
+    Valor referente... | 1,00000 | 1.232,26 | 0,00 | 1.232,26 ← USE ESTE VALOR
+  * NÃO use valores de outras partes do PDF (totais, mensalidades, etc.)
 - nomePessoa: Nome completo do TOMADOR DO SERVIÇO (quem está pagando), NÃO o prestador
 - responsavelNome: Nome do responsável mencionado na discriminação (ex: "Antônio Marcos Bonassa" se aparecer "Ana Sangaleti Bonassa - Antônio Marcos Bonassa")
 - formaPagamento: Extraia a forma de pagamento da discriminação e substitua abreviações por nomes completos (ex: "PIX", "PIX Banco do Brasil", "PIX SICREDI", "DINHEIRO", "TRANSFERÊNCIA")
@@ -136,15 +144,21 @@ Retorne APENAS o JSON válido, sem explicações adicionais.
 export async function extractNFSEWithFallback(file: File, geminiApiKey?: string): Promise<ExtractedNFSEData> {
   // Se não tiver API key do Gemini, usar fallback
   if (!geminiApiKey) {
-    console.log('⚠️ API key do Gemini não fornecida, usando fallback');
+    console.warn('⚠️⚠️⚠️ API key do Gemini NÃO fornecida - Usando FALLBACK MOCKADO! ⚠️⚠️⚠️');
+    console.warn('Os valores extraídos serão ESTIMATIVAS e provavelmente INCORRETOS!');
     return generateFallbackData(file);
   }
   
   try {
     // Tentar usar Gemini
-    return await extractNFSEWithGemini(file, geminiApiKey);
+    console.log('🤖 Tentando extrair com Gemini API...');
+    const result = await extractNFSEWithGemini(file, geminiApiKey);
+    console.log('✅ Gemini extraiu dados com sucesso!');
+    return result;
   } catch (error) {
-    console.warn('⚠️ Erro com Gemini, usando fallback:', error);
+    console.error('❌❌❌ GEMINI FALHOU! Usando FALLBACK MOCKADO! ❌❌❌');
+    console.error('Erro do Gemini:', error);
+    console.warn('Os valores extraídos serão ESTIMATIVAS e provavelmente INCORRETOS!');
     return generateFallbackData(file);
   }
 }
@@ -171,31 +185,67 @@ function generateFallbackData(file: File): ExtractedNFSEData {
     numeroNFSE = Math.abs(hash).toString().slice(0, 4);
   }
   
+  // ⚠️ ATENÇÃO: Valor é uma ESTIMATIVA baseada no tamanho do arquivo!
+  // Este valor provavelmente está ERRADO e deve ser ajustado manualmente
   const valor = Math.round((file.size / 1000) * 50);
   const dataPrestacao = new Date().toLocaleDateString('pt-BR');
   
+  console.warn('⚠️ FALLBACK: Valor estimado (PODE ESTAR ERRADO!):', valor);
   console.log('🔄 Fallback: dataPrestacao gerada:', dataPrestacao);
   
+  // ✅ CORRIGIDO: Extrair nome do arquivo corretamente
+  // Tentar extrair nome do arquivo (remover número NFSE e extensão)
   let nomePessoa = 'Nome não encontrado';
-  if (fileName.includes('oli')) {
-    nomePessoa = 'OLICIO DOS SANTOS';
-  } else if (fileName.includes('ana')) {
-    nomePessoa = 'ANA SANGALETI BONASSA';
-  } else if (fileName.includes('maria')) {
-    nomePessoa = 'MARIA SILVA SANTOS';
+  
+  // Remover número NFSE e extensão do nome do arquivo
+  let nomeExtraido = file.name
+    .replace(/\.pdf$/i, '')
+    .replace(/\.docx$/i, '')
+    .replace(/^\d+\s*/, '') // Remover números no início
+    .trim();
+  
+  if (nomeExtraido && nomeExtraido.length > 3) {
+    // Capitalizar nome corretamente
+    nomePessoa = nomeExtraido
+      .split(' ')
+      .map(palavra => palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase())
+      .join(' ');
+    console.log('✅ Nome extraído do arquivo:', nomePessoa);
+  } else {
+    // Fallback para nomes conhecidos
+    if (fileName.includes('oli')) {
+      nomePessoa = 'OLICIO DOS SANTOS';
+    } else if (fileName.includes('ana')) {
+      nomePessoa = 'ANA SANGALETI BONASSA';
+    } else if (fileName.includes('maria silva')) {
+      nomePessoa = 'MARIA SILVA SANTOS';
+    }
   }
   
-  const discriminacao = 'Valor referente a participação no custeio da entidade. Referente ao mês de setembro de 2025. Conforme PIX Banco do Brasil.';
+  // ✅ CORRIGIDO: Gerar discriminação com mês dinâmico
+  const mesAtual = new Date().toLocaleDateString('pt-BR', { month: 'long' });
+  const anoAtual = new Date().getFullYear();
+  const discriminacao = `Valor referente a participação no custeio da entidade. Referente ao mês de ${mesAtual} de ${anoAtual}. Conforme PIX Banco do Brasil.`;
   
-      return {
-        numeroNFSE,
-        dataPrestacao,
-        dataEmissao: dataPrestacao, // Usar mesma data como fallback
-        discriminacao,
-        valor,
-        nomePessoa,
-        responsavelNome: undefined, // Não há responsável no fallback
-        formaPagamento: 'PIX Banco do Brasil',
-        mesReferencia: '09/2025'
-      };
+  // Log de aviso
+  console.warn('⚠️⚠️⚠️ FALLBACK ATIVO - Dados podem estar INCORRETOS! ⚠️⚠️⚠️');
+  console.warn('Dados extraídos por fallback (VERIFIQUE MANUALMENTE):');
+  console.warn('  - Número NFSE:', numeroNFSE);
+  console.warn('  - Valor:', valor, '← ESTIMADO pelo tamanho do arquivo (' + file.size + ' bytes) - PROVAVELMENTE ERRADO!');
+  console.warn('  - Pagador:', nomePessoa);
+  console.warn('  - Data:', dataPrestacao);
+  console.warn('Por favor, AJUSTE MANUALMENTE os valores se estiverem incorretos!');
+  
+  return {
+    numeroNFSE,
+    dataPrestacao,
+    dataEmissao: dataPrestacao, // Usar mesma data como fallback
+    discriminacao,
+    valor,
+    nomePessoa,
+    responsavelNome: undefined, // Não há responsável no fallback
+    formaPagamento: 'PIX Banco do Brasil',
+    mesReferencia: '09/2025',
+    _fallback: true // Marcar que veio do fallback mockado
+  };
 }

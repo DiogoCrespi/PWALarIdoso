@@ -37,7 +37,49 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       const data = await window.electronAPI.dashboard.get(ano);
-      setDashboardData(data);
+      
+      // 🔧 Verificar idosos sem ID e atribuir IDs temporários localmente
+      const idososSemId: string[] = [];
+      const idososComIdCorrigido = data.idosos.map((idoso, index) => {
+        if (!idoso.id) {
+          // Gerar ID temporário único localmente (sem salvar no banco)
+          const idTemporario = Date.now() + index;
+          console.warn('⚠️ Idoso sem ID encontrado:', idoso.nome);
+          console.log('🔧 Atribuindo ID temporário:', idTemporario);
+          
+          // Guardar nome para exibir no snackbar
+          idososSemId.push(idoso.nome);
+          
+          return {
+            ...idoso,
+            id: idTemporario
+          };
+        }
+        return idoso;
+      });
+      
+      // Atualizar dados com IDs temporários
+      setDashboardData({
+        ...data,
+        idosos: idososComIdCorrigido
+      });
+      
+      // Mostrar snackbar se houver idosos sem ID
+      if (idososSemId.length > 0) {
+        console.log('💡 Dica: IDs permanentes serão gerados ao editar/salvar os idosos');
+        
+        let mensagem = '';
+        if (idososSemId.length === 1) {
+          mensagem = `⚠️ 1 idoso importado sem ID: "${idososSemId[0]}". ID temporário atribuído. Dashboard funciona normalmente. Para corrigir permanentemente, edite e salve este idoso.`;
+        } else if (idososSemId.length <= 5) {
+          mensagem = `⚠️ ${idososSemId.length} idosos importados sem ID: ${idososSemId.join(', ')}. IDs temporários atribuídos. Dashboard funciona normalmente. Para corrigir permanentemente, edite e salve cada um.`;
+        } else {
+          mensagem = `⚠️ ${idososSemId.length} idosos importados sem ID. IDs temporários atribuídos. Dashboard funciona normalmente. Para corrigir permanentemente, edite e salve cada idoso em "Gerenciar Idosos".`;
+        }
+        
+        setSnackbarMessage(mensagem);
+        setSnackbarOpen(true);
+      }
     } catch (err: any) {
       console.error('Erro ao carregar dashboard:', err);
       setError(err.message || 'Erro ao carregar dados');
@@ -291,10 +333,18 @@ export default function DashboardPage() {
       {/* Snackbar para feedback */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={4000}
+        autoHideDuration={8000}
         onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
-      />
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity={snackbarMessage.includes('⚠️') ? 'warning' : 'success'}
+          sx={{ width: '100%', maxWidth: '600px' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

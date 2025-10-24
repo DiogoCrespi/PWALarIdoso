@@ -3,6 +3,7 @@
 import { getReciboMensalidadeHtml, getListaIdososHtml } from '../templates/recibo.template';
 import { logInfo, logError } from '../utils/logger';
 import extenso from 'extenso';
+import { arredondarMoeda, calcularDiferenca, calcularPercentual } from '../utils/currency';
 
 // Funções para gerenciar localStorage
 const getFromStorage = (key: string, defaultValue: any) => {
@@ -880,13 +881,15 @@ export const mockElectronAPI = {
       const idososMock = getIdososMock();
       const pagamentosMock = getPagamentosMock();
       
-      // Usar idosos do array em memória
+      // ✅ CORRIGIDO: Incluir beneficioSalario e tipo no retorno
       const idosos = idososMock.map((idoso: any) => ({
         id: idoso.id,
         nome: idoso.nome,
         cpf: idoso.cpf,
         responsavel: idoso.responsavel,
         valorMensalidadeBase: idoso.valorMensalidadeBase,
+        beneficioSalario: idoso.beneficioSalario || 0, // ✅ ADICIONADO
+        tipo: idoso.tipo || 'REGULAR', // ✅ ADICIONADO
         ativo: idoso.ativo,
       }));
 
@@ -942,7 +945,7 @@ export const mockElectronAPI = {
       
       // Buscar idoso para calcular status
       const idoso = idososMock.find((i: any) => i.id === idosoId);
-      const valorBase = (idoso as any)?.beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0;
+      const valorBase = idoso?.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0;
       const valorPago = data.valorPago || 0;
       const tipoIdoso = idoso?.tipo || 'REGULAR';
       let status = 'PENDENTE';
@@ -956,10 +959,14 @@ export const mockElectronAPI = {
         status = 'PARCIAL';
       }
       
-      // Calcular valores de benefício
-      const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
+      // ✅ CORRIGIDO: Calcular valores de benefício com precisão monetária
+      const salarioIdoso = arredondarMoeda(idoso.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0); // Salário do idoso (ex: R$ 1.518,00)
       const percentualBeneficio = 70; // Percentual padrão
-      const valorNFSE = salarioIdoso * (percentualBeneficio / 100); // 70% do salário (ex: R$ 1.062,60)
+      const valorNFSE = calcularPercentual(salarioIdoso, percentualBeneficio); // 70% do salário (ex: R$ 1.062,60)
+      
+      // ✅ CORRIGIDO: Definir variáveis que estavam faltando
+      const valorBeneficio = salarioIdoso; // Valor base do benefício (salário do idoso)
+      const totalBeneficioAplicado = valorNFSE; // 70% do salário aplicado
       
       // Para idosos SOCIAL: não há doação (município paga o restante)
       // Para idosos REGULAR: doação = valor pago - 70% do benefício
@@ -967,9 +974,17 @@ export const mockElectronAPI = {
       if (tipoIdoso === 'SOCIAL') {
         valorDoacao = 0; // Idosos SOCIAL não geram doação (prefeitura paga o restante)
       } else {
-        // Idosos REGULAR: doação = valor pago - 70% do benefício
-        valorDoacao = Math.max(0, valorPago - valorNFSE);
+        // ✅ CORRIGIDO: Usar função de diferença para evitar problemas de ponto flutuante
+        valorDoacao = calcularDiferenca(arredondarMoeda(valorPago), valorNFSE);
       }
+      
+      console.log('💰 Cálculo de doação:', {
+        valorPago: arredondarMoeda(valorPago),
+        salarioIdoso,
+        valorNFSE,
+        valorDoacao,
+        tipoIdoso
+      });
       
       // Verificar se já existe pagamento para este idoso/mês/ano
       const pagamentoExistente = pagamentosMock.find((p: any) => 
@@ -1576,7 +1591,7 @@ export const mockElectronAPI = {
           const idoso = idosos.find((i: any) => i.id === p.idosoId);
           
           // Calcular valores de benefício
-          const salarioIdoso = (idoso as any)?.beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso
+          const salarioIdoso = idoso?.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0; // Salário do idoso
           const percentualBeneficio = 70; // Percentual padrão
           const valorNFSE = salarioIdoso * (percentualBeneficio / 100); // 70% do salário
           
@@ -1757,11 +1772,11 @@ DETALHES DO CÁLCULO:
           throw new Error('Responsável não encontrado');
         }
         
-        // Calcular valores
-        const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
-        const valorPago = pagamento.valorPago || 0; // Valor da mensalidade paga (ex: R$ 3.225,00)
-        const valorNFSE = salarioIdoso * 0.7; // 70% do salário do idoso (ex: R$ 1.062,60)
-        const valorDoacao = Math.max(0, valorPago - valorNFSE); // Doação (ex: R$ 2.162,40)
+        // ✅ CORRIGIDO: Calcular valores com precisão monetária
+        const salarioIdoso = arredondarMoeda(idoso.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0); // Salário do idoso (ex: R$ 1.518,00)
+        const valorPago = arredondarMoeda(pagamento.valorPago || 0); // Valor da mensalidade paga (ex: R$ 3.225,00)
+        const valorNFSE = calcularPercentual(salarioIdoso, 70); // 70% do salário do idoso (ex: R$ 1.062,60)
+        const valorDoacao = calcularDiferenca(valorPago, valorNFSE); // Doação (ex: R$ 2.162,40)
         
         // Se não há doação ou é idoso SOCIAL, não gerar recibo
         if (valorDoacao <= 0 || idoso.tipo === 'SOCIAL') {

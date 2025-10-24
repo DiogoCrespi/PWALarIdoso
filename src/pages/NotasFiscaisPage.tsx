@@ -36,6 +36,8 @@ import {
 } from '@mui/icons-material';
 import NFSEUpload from '../components/NFSE/NFSEUpload';
 import { api } from '../services/api';
+import { nomesIguais, buscarIdosoPorNome, buscarResponsavelPorNome } from '../utils/nameNormalizer';
+import { arredondarMoeda } from '../utils/currency';
 
 interface NotaFiscal {
   id: number;
@@ -189,15 +191,18 @@ const NotasFiscaisPage: React.FC = () => {
       
       // Buscar ou criar idoso baseado no idosoNome (razão social)
       if (data.idosoNome) {
-        // Primeiro, tentar buscar idoso existente com nome exato
-        const idososEncontrados = await window.electronAPI.idosos.getByNome(data.idosoNome);
-        const idosoExato = idososEncontrados.find(idoso => 
-          idoso.nome.toLowerCase() === data.idosoNome.toLowerCase()
-        );
+        // ✅ CORRIGIDO: Usar normalização inteligente para evitar duplicatas
+        // Buscar TODOS os idosos e comparar com normalização
+        const todosIdosos = await window.electronAPI.idosos.list();
+        const idosoExato = buscarIdosoPorNome(data.idosoNome, todosIdosos);
         
         if (idosoExato) {
           idosoId = idosoExato.id;
-          console.log('👤 Idoso encontrado com nome exato:', idosoExato.nome);
+          console.log('👤 ✅ Idoso encontrado (normalizado):', {
+            buscado: data.idosoNome,
+            encontrado: idosoExato.nome,
+            id: idosoExato.id
+          });
         } else {
           // Se não encontrou idoso com nome exato, criar um novo AGORA
           console.log('👤 Criando novo idoso para:', data.idosoNome);
@@ -205,14 +210,17 @@ const NotasFiscaisPage: React.FC = () => {
           // Criar responsável primeiro se necessário
           let responsavelId = null;
           if (data.responsavelNome) {
-            // Buscar responsável existente
+            // ✅ CORRIGIDO: Buscar responsável com normalização inteligente
             const responsaveis = await window.electronAPI.responsaveis.list();
-            const responsavelExistente = responsaveis.find(r => 
-              r.nome.toLowerCase() === data.responsavelNome.toLowerCase()
-            );
+            const responsavelExistente = buscarResponsavelPorNome(data.responsavelNome, responsaveis);
             
             if (responsavelExistente) {
               responsavelId = responsavelExistente.id;
+              console.log('👤 ✅ Responsável encontrado (normalizado):', {
+                buscado: data.responsavelNome,
+                encontrado: responsavelExistente.nome,
+                id: responsavelExistente.id
+              });
             } else {
               // Criar novo responsável
               const novoResponsavel = await window.electronAPI.responsaveis.create({
@@ -228,14 +236,14 @@ const NotasFiscaisPage: React.FC = () => {
             }
           }
           
-          // Criar novo idoso
+          // ✅ CORRIGIDO: Criar novo idoso com valores arredondados
           const novoIdoso = await window.electronAPI.idosos.create({
             nome: data.idosoNome,
             cpf: '',
             dataNascimento: null,
             responsavelId: responsavelId,
-            valorMensalidadeBase: data.valor || 2500, // Usar valor da NFSE como mensalidade
-            beneficioSalario: data.valor || 2500, // Usar valor da NFSE como benefício (salário)
+            valorMensalidadeBase: arredondarMoeda(data.valor || 2500), // ✅ Arredondado
+            beneficioSalario: arredondarMoeda(data.valor || 2500), // ✅ Arredondado
             tipo: 'REGULAR',
             observacoes: 'Idoso criado automaticamente via NFSE',
             ativo: true,
@@ -265,11 +273,12 @@ const NotasFiscaisPage: React.FC = () => {
           const { mes, ano } = parseMesReferencia(data.mesReferencia);
           
           // Usar o idosoId correto (já criado se necessário)
+          // ✅ CORRIGIDO: Criar pagamento com valor arredondado
           const novoPagamento = await window.electronAPI.pagamentos.upsert({
             idosoId: idosoId, // Usar o idoso correto
             mesReferencia: mes,
             anoReferencia: ano,
-            valorPago: data.valor || 0,
+            valorPago: arredondarMoeda(data.valor || 0), // ✅ Arredondado
             dataPagamento: data.dataPrestacao ? parseBrazilianDate(data.dataPrestacao) : new Date(),
             nfse: data.numeroNFSE,
             pagador: pagador,
@@ -286,12 +295,13 @@ const NotasFiscaisPage: React.FC = () => {
       
       if (notaExistente) {
         // Atualizar nota fiscal existente com dados do upload
+        // ✅ CORRIGIDO: Atualizar nota fiscal com valor arredondado
         const notaAtualizada = await window.electronAPI.notasFiscais.update(notaExistente.id, {
           numeroNFSE: data.numeroNFSE,
           dataPrestacao: data.dataPrestacao,
           dataEmissao: data.dataEmissao,
           discriminacao: data.discriminacao,
-          valor: data.valor,
+          valor: arredondarMoeda(data.valor), // ✅ Arredondado
           nomePessoa: data.idosoNome, // Usar o idosoNome (razão social)
           responsavelNome: data.responsavelNome, // Nome do responsável
           responsavelCpf: data.responsavelCpf, // CPF do responsável
@@ -306,6 +316,7 @@ const NotasFiscaisPage: React.FC = () => {
         // Extrair mês e ano do mesReferencia extraído pela IA
         const { mes, ano } = parseMesReferencia(data.mesReferencia);
         
+        // ✅ CORRIGIDO: Criar nota fiscal com valor arredondado
         const novaNota = await window.electronAPI.notasFiscais.create({
           idosoId: idosoId, // Usar o idoso correto
           mesReferencia: mes,
@@ -314,7 +325,7 @@ const NotasFiscaisPage: React.FC = () => {
           dataPrestacao: data.dataPrestacao,
           dataEmissao: data.dataEmissao,
           discriminacao: data.discriminacao,
-          valor: data.valor,
+          valor: arredondarMoeda(data.valor), // ✅ Arredondado
           nomePessoa: data.idosoNome, // Usar o idosoNome (razão social)
           responsavelNome: data.responsavelNome, // Nome do responsável
           responsavelCpf: data.responsavelCpf, // CPF do responsável
@@ -334,7 +345,7 @@ const NotasFiscaisPage: React.FC = () => {
             const idoso = await window.electronAPI.idosos.getById(idosoId);
             
             if (pagamento && idoso) {
-              const salarioIdoso = (idoso as any).beneficioSalario && (idoso as any).beneficioSalario > 0 ? (idoso as any).beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
+              const salarioIdoso = idoso.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0; // Salário do idoso (ex: R$ 1.518,00)
               const valorPago = pagamento.valorPago || 0; // Mensalidade paga (ex: R$ 3.225,00)
               const valorNFSE = salarioIdoso * 0.7; // 70% do salário (ex: R$ 1.062,60)
               const valorDoacao = Math.max(0, valorPago - valorNFSE); // Doação (ex: R$ 2.162,40)

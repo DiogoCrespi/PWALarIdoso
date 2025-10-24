@@ -8,6 +8,7 @@ export interface Idoso {
   responsavelId: number;
   responsavel?: Responsavel;
   valorMensalidadeBase: number;
+  beneficioSalario: number; // ✅ CORRIGIDO: Salário do idoso (usado para calcular 70% na NFSE)
   tipo: 'REGULAR' | 'SOCIAL'; // REGULAR = 70% + doação, SOCIAL = valor fixo
   pagamentos?: Pagamento[];
   ativo: boolean;
