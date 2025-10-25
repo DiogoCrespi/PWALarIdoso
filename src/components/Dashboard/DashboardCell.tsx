@@ -14,18 +14,18 @@ export default function DashboardCell({ status, nfse, onClick }: DashboardCellPr
         onClick={onClick}
         sx={{
           backgroundColor: statusColors[status],
-          minHeight: '60px',
+          minHeight: { xs: '45px', sm: '50px', md: '60px' },
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          border: '2px solid white',
+          border: { xs: '1px solid white', md: '2px solid white' },
           transition: 'all 0.2s ease',
           color: 'white',
           fontWeight: 'bold',
-          fontSize: '0.9rem',
+          fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
           '&:hover': {
-            transform: 'scale(1.05)',
+            transform: { xs: 'scale(1.02)', md: 'scale(1.05)' },
             boxShadow: 4,
             zIndex: 2,
           },

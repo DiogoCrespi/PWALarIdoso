@@ -22,6 +22,7 @@ import { CloudUpload, Description, CheckCircle } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
 import { extractNFSEWithFallback } from '../../utils/geminiExtractor';
 import { isGeminiConfigured, getGeminiApiKey } from '../../config/gemini';
+import { nomesIguais, buscarIdosoPorNome } from '../../utils/nameNormalizer';
 
 interface NFSEUploadProps {
   onNFSEProcessed: (data: NFSEData) => void;
@@ -168,12 +169,30 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
         extractedData.valor = 0; // Deixar vazio para usuário preencher
         console.warn('💰 Valor NÃO foi preenchido - usuário deve preencher manualmente');
         
-        // Manter outros dados mas mostrar aviso claro
-        setError('⚠️ API Gemini indisponível. Dados foram estimados do nome do arquivo. PREENCHA O VALOR manualmente!');
+        // Mensagem de erro específica baseada no tipo de erro
+        let errorMsg = '';
+        switch (extractedData._errorType) {
+          case 'RATE_LIMIT':
+            errorMsg = '⏱️ Limite de requisições do Gemini atingido (máximo por minuto). Aguarde 1-2 minutos e tente novamente. Dados foram estimados do nome do arquivo - PREENCHA O VALOR manualmente!';
+            console.warn('⏱️ RATE LIMIT: O Gemini está funcionando mas você atingiu o limite de requisições por minuto');
+            break;
+          case 'NO_API_KEY':
+            errorMsg = '🔑 API key do Gemini não configurada. Dados foram estimados do nome do arquivo. PREENCHA O VALOR manualmente! Configure a API key em Configurações.';
+            break;
+          case 'NETWORK_ERROR':
+            errorMsg = '🌐 Erro de conexão com Gemini. Verifique sua internet. Dados foram estimados do nome do arquivo - PREENCHA O VALOR manualmente!';
+            break;
+          case 'API_ERROR':
+          default:
+            errorMsg = '⚠️ Erro ao processar com Gemini. Dados foram estimados do nome do arquivo. PREENCHA O VALOR manualmente!';
+            break;
+        }
+        
+        setError(errorMsg);
+      } else {
+        // ✅ Gemini funcionou - dados são REAIS do PDF
+        console.log('✅ Dados extraídos CORRETAMENTE pela Gemini:', extractedData);
       }
-      
-      // ✅ Gemini funcionou - dados são REAIS do PDF
-      console.log('✅ Dados extraídos CORRETAMENTE pela Gemini:', extractedData);
 
       setExtractedData(extractedData);
       
@@ -389,7 +408,7 @@ const NFSEUpload: React.FC<NFSEUploadProps> = ({ onNFSEProcessed }) => {
                 fullWidth
                 options={idososList}
                 getOptionLabel={(option) => option.nome}
-                value={idososList.find(idoso => idoso.nome === idosoNome) || null}
+                value={buscarIdosoPorNome(idosoNome, idososList) || null}
                 inputValue={idosoNome}
                 onChange={(_, newValue) => {
                   if (newValue) {

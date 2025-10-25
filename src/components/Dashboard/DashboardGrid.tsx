@@ -16,8 +16,16 @@ const meses = [
 
 export default function DashboardGrid({ idosos, pagamentos, onCellClick }: DashboardGridProps) {
   return (
-    <TableContainer sx={{ maxHeight: 'calc(100vh - 300px)' }}>
-      <Table stickyHeader>
+    <TableContainer sx={{ 
+      maxHeight: { 
+        xs: 'calc(100vh - 240px)', // Mobile: mais espaço sem rodapé
+        sm: 'calc(100vh - 220px)', // Tablet: mais espaço sem rodapé
+        md: 'calc(100vh - 210px)'  // Desktop: mais espaço sem rodapé
+      },
+      overflowX: 'auto',
+      overflowY: 'auto'
+    }}>
+      <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
             <TableCell
@@ -25,7 +33,9 @@ export default function DashboardGrid({ idosos, pagamentos, onCellClick }: Dashb
                 fontWeight: 'bold',
                 backgroundColor: 'primary.main',
                 color: 'white',
-                minWidth: '200px',
+                minWidth: { xs: '120px', sm: '150px', md: '200px' },
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                padding: { xs: '8px', sm: '12px', md: '16px' },
                 position: 'sticky',
                 left: 0,
                 zIndex: 3,
@@ -41,7 +51,9 @@ export default function DashboardGrid({ idosos, pagamentos, onCellClick }: Dashb
                   fontWeight: 'bold',
                   backgroundColor: 'primary.main',
                   color: 'white',
-                  minWidth: '80px',
+                  minWidth: { xs: '60px', sm: '70px', md: '80px' },
+                  fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.875rem' },
+                  padding: { xs: '6px 4px', sm: '8px', md: '12px' },
                 }}
               >
                 {mes}
@@ -66,10 +78,14 @@ export default function DashboardGrid({ idosos, pagamentos, onCellClick }: Dashb
                   <TableCell
                     sx={{
                       fontWeight: 'medium',
+                      fontSize: { xs: '0.75rem', sm: '0.875rem', md: '1rem' },
+                      padding: { xs: '8px', sm: '12px', md: '16px' },
                       position: 'sticky',
                       left: 0,
                       backgroundColor: 'background.paper',
                       zIndex: 1,
+                      whiteSpace: { xs: 'normal', md: 'nowrap' },
+                      wordBreak: { xs: 'break-word', md: 'normal' },
                     }}
                   >
                     {idoso.nome}

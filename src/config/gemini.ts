@@ -1,7 +1,8 @@
 // Configuração da API do Gemini
 export const GEMINI_CONFIG = {
   // API Key do Gemini - você pode obter em: https://makersuite.google.com/app/apikey
-  API_KEY: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyBYiVvbMhHm-DfaPMoX1yVlRReOX_1iixU',
+  // IMPORTANTE: Configure a chave no arquivo .env como VITE_GEMINI_API_KEY
+  API_KEY: import.meta.env.VITE_GEMINI_API_KEY || '',
   
   // Modelo a ser usado
   MODEL: 'gemini-2.0-flash',

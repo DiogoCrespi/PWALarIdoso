@@ -12,6 +12,8 @@ export interface ExtractedNFSEData {
   formaPagamento?: string;
   mesReferencia?: string;
   _fallback?: boolean; // Indica que os dados vieram do fallback mockado
+  _errorType?: 'RATE_LIMIT' | 'NO_API_KEY' | 'API_ERROR' | 'NETWORK_ERROR'; // Tipo de erro que causou o fallback
+  _errorMessage?: string; // Mensagem de erro original
 }
 
 /**
@@ -146,7 +148,7 @@ export async function extractNFSEWithFallback(file: File, geminiApiKey?: string)
   if (!geminiApiKey) {
     console.warn('⚠️⚠️⚠️ API key do Gemini NÃO fornecida - Usando FALLBACK MOCKADO! ⚠️⚠️⚠️');
     console.warn('Os valores extraídos serão ESTIMATIVAS e provavelmente INCORRETOS!');
-    return generateFallbackData(file);
+    return generateFallbackData(file, 'NO_API_KEY', 'API key não configurada');
   }
   
   try {
@@ -156,17 +158,32 @@ export async function extractNFSEWithFallback(file: File, geminiApiKey?: string)
     console.log('✅ Gemini extraiu dados com sucesso!');
     return result;
   } catch (error) {
-    console.error('❌❌❌ GEMINI FALHOU! Usando FALLBACK MOCKADO! ❌❌❌');
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    
+    // Detectar tipo de erro
+    let errorType: 'RATE_LIMIT' | 'API_ERROR' | 'NETWORK_ERROR' = 'API_ERROR';
+    
+    if (errorMessage.includes('429') || errorMessage.includes('Quota exceeded') || errorMessage.includes('RATE_LIMIT_EXCEEDED')) {
+      errorType = 'RATE_LIMIT';
+      console.warn('⏱️ RATE LIMIT ATINGIDO! Aguarde alguns minutos e tente novamente.');
+      console.warn('O Gemini tem limite de requisições por minuto. Seus dados foram extraídos CORRETAMENTE antes do limite.');
+    } else if (errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('NetworkError')) {
+      errorType = 'NETWORK_ERROR';
+      console.error('🌐 Erro de rede ao conectar com Gemini');
+    } else {
+      console.error('❌ Erro da API Gemini:', errorMessage);
+    }
+    
     console.error('Erro do Gemini:', error);
-    console.warn('Os valores extraídos serão ESTIMATIVAS e provavelmente INCORRETOS!');
-    return generateFallbackData(file);
+    console.warn('⚠️ Usando FALLBACK - Dados serão ESTIMATIVAS!');
+    return generateFallbackData(file, errorType, errorMessage);
   }
 }
 
 /**
  * Gera dados de fallback baseados no nome do arquivo (método anterior)
  */
-function generateFallbackData(file: File): ExtractedNFSEData {
+function generateFallbackData(file: File, errorType?: 'RATE_LIMIT' | 'NO_API_KEY' | 'API_ERROR' | 'NETWORK_ERROR', errorMessage?: string): ExtractedNFSEData {
   console.log('🔄 Gerando dados de fallback para:', file.name);
   
   const fileName = file.name.toLowerCase();
@@ -246,6 +263,8 @@ function generateFallbackData(file: File): ExtractedNFSEData {
     responsavelNome: undefined, // Não há responsável no fallback
     formaPagamento: 'PIX Banco do Brasil',
     mesReferencia: '09/2025',
-    _fallback: true // Marcar que veio do fallback mockado
+    _fallback: true, // Marcar que veio do fallback mockado
+    _errorType: errorType, // Tipo de erro que causou o fallback
+    _errorMessage: errorMessage // Mensagem de erro original
   };
 }

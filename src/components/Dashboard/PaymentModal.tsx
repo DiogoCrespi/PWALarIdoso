@@ -33,6 +33,7 @@ import { extractNFSEWithFallback } from '../../utils/geminiExtractor';
 import { isGeminiConfigured, getGeminiApiKey } from '../../config/gemini';
 import { logInfo, logError, logWarn } from '../../utils/logger';
 import { api } from '../../services/api';
+import { nomesIguais } from '../../utils/nameNormalizer';
 import type { Idoso } from '../../electron.d';
 
 interface PaymentModalProps {
@@ -72,7 +73,7 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const [formData, setFormData] = useState({
     valorPago: '',
-    dataPagamento: new Date(),
+    dataPagamento: null as Date | null,
     nfse: '',
     pagador: '',
     formaPagamento: '',
@@ -127,19 +128,9 @@ export default function PaymentModal({
       
       setUltimaNFSE(ultimaNFSE);
       
-      // Se não há pagamento existente, preencher com dados da última NFSE
-      if (!pagamentoExistente && ultimaNFSE) {
-        console.log('🔄 PaymentModal: Preenchendo com dados da última NFSE:', ultimaNFSE);
-        setFormData(prev => ({
-          ...prev,
-          valorPago: ultimaNFSE.valorPago?.toString() || '',
-          nfse: ultimaNFSE.nfse || '',
-          pagador: ultimaNFSE.pagador || '',
-          formaPagamento: ultimaNFSE.formaPagamento || '',
-          discriminacao: ultimaNFSE.observacoes || '',
-          dataEmissao: '',
-        }));
-      }
+      // ✅ REMOVIDO: Não preencher automaticamente com última NFSE
+      // Isso causava conflito com dados extraídos do PDF atual
+      // O usuário deve fazer upload da NFSE atual para preencher os campos
       
     } catch (error) {
       console.error('❌ PaymentModal: Erro ao carregar histórico:', error);
@@ -148,18 +139,18 @@ export default function PaymentModal({
 
   // Resetar formulário quando modal abrir
   useEffect(() => {
-    console.log('🔄 PaymentModal: useEffect - open:', open, 'idoso:', idoso, 'pagamentoExistente:', pagamentoExistente);
+    console.log('🔄 PaymentModal: useEffect - open:', open, 'idoso:', idoso?.nome, 'pagamentoExistente:', pagamentoExistente);
     
     if (open) {
       if (pagamentoExistente) {
-        console.log('📝 PaymentModal: Editando pagamento existente');
+        console.log('📝 PaymentModal: Editando pagamento existente:', pagamentoExistente);
       } else {
         console.log('➕ PaymentModal: Criando novo pagamento');
       }
       
-      setFormData({
+      const initialFormData = {
         valorPago: pagamentoExistente?.valorPago?.toString() || '',
-        dataPagamento: pagamentoExistente?.dataPagamento || new Date(),
+        dataPagamento: pagamentoExistente?.dataPagamento ? new Date(pagamentoExistente.dataPagamento) : null,
         nfse: pagamentoExistente?.nfse || '',
         pagador: pagamentoExistente?.pagador || '',
         formaPagamento: pagamentoExistente?.formaPagamento || '',
@@ -167,9 +158,16 @@ export default function PaymentModal({
         discriminacao: pagamentoExistente?.observacoes || '',
         mesReferencia: mes,
         anoReferencia: ano,
-      });
+      };
+      
+      console.log('📋 PaymentModal: Dados iniciais do formulário:', initialFormData);
+      setFormData(initialFormData);
       setError(null);
       setSuccess(false);
+      
+      // Limpar upload anterior ao abrir modal
+      setUploadedFile(null);
+      setExtractedData(null);
       
       // Carregar histórico do idoso
       loadHistoricoIdoso();
@@ -285,73 +283,141 @@ export default function PaymentModal({
         geminiConfigured ? getGeminiApiKey() : undefined
       );
       
-      // ⚠️ IMPORTANTE: Se fallback, NÃO MOSTRAR NADA - só avisar erro
+      // ⚠️ IMPORTANTE: Se fallback, USAR dados extraídos mas ZERAR o valor
       if (extractedData._fallback) {
-        console.error('❌ FALLBACK ATIVO - Gemini falhou, limite atingido!');
-        console.error('⚠️ NÃO vou usar dados mockados - eles só confundem!');
+        console.warn('⚠️ FALLBACK ATIVO - Usando dados extraídos do nome do arquivo');
+        console.warn('💰 Valor será ZERADO para preenchimento manual');
         
-        // NÃO salvar extractedData mockado
-        setExtractedData(null);
-        setUploadedFile(null);
+        // Zerar o valor (o que mais erra)
+        extractedData.valor = 0;
         
-        setError('Limite da API Gemini atingido. A extração automática falhou. Por favor, preencha manualmente todos os campos com os dados corretos do PDF.');
+        // Mensagem de erro específica baseada no tipo de erro
+        let errorMsg = '';
+        let snackbarMsg = '';
         
-        showSnackbar(
-          '⚠️ Limite de API atingido! Aguarde 1 minuto e tente novamente, ou preencha manualmente os campos.',
-          'error'
-        );
-        return; // Parar aqui - não usar dados mockados
+        switch (extractedData._errorType) {
+          case 'RATE_LIMIT':
+            errorMsg = '⏱️ Limite de requisições do Gemini atingido. Os dados foram extraídos do nome do arquivo. PREENCHA O VALOR manualmente!';
+            snackbarMsg = '⏱️ Limite de API atingido! Aguarde 1-2 minutos para usar extração automática novamente. Dados básicos foram preenchidos.';
+            console.warn('⏱️ RATE LIMIT: Gemini funcionando mas limite atingido');
+            break;
+          case 'NO_API_KEY':
+            errorMsg = '🔑 API key do Gemini não configurada. Dados foram extraídos do nome do arquivo. PREENCHA O VALOR manualmente!';
+            snackbarMsg = '🔑 Configure a API key do Gemini em Configurações para extração automática completa.';
+            break;
+          case 'NETWORK_ERROR':
+            errorMsg = '🌐 Erro de conexão com Gemini. Dados foram extraídos do nome do arquivo. PREENCHA O VALOR manualmente!';
+            snackbarMsg = '🌐 Verifique sua conexão com a internet.';
+            break;
+          case 'API_ERROR':
+          default:
+            errorMsg = '⚠️ Erro ao processar com Gemini. Dados foram extraídos do nome do arquivo. PREENCHA O VALOR manualmente!';
+            snackbarMsg = '⚠️ Erro na extração automática. Verifique os dados preenchidos.';
+            break;
+        }
+        
+        setError(errorMsg);
+        showSnackbar(snackbarMsg, 'warning');
+        
+        // Continuar para usar os dados do fallback (não retornar aqui)
+      } else {
+        // ✅ Gemini funcionou - dados são REAIS do PDF
+        console.log('✅ Dados extraídos CORRETAMENTE pela Gemini:', extractedData);
+        // Limpar qualquer erro anterior quando Gemini funciona
+        setError(null);
       }
-      
-      // ✅ Gemini funcionou - dados são REAIS do PDF
-      console.log('✅ Dados extraídos CORRETAMENTE pela Gemini:', extractedData);
-
-      // Limpar qualquer erro anterior
-      setError(null);
 
       setExtractedData(extractedData);
       
-      // ✅ Gemini funcionou - Preencher automaticamente os campos do formulário
-      setFormData(prev => ({
-        ...prev,
-        valorPago: extractedData.valor.toString(),
-        nfse: extractedData.numeroNFSE,
-        pagador: extractedData.nomePessoa || '',
-        formaPagamento: extractedData.formaPagamento || '',
-        dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
-        dataEmissao: extractedData.dataEmissao || '',
-        discriminacao: extractedData.discriminacao || '',
-      }));
+      // Converter dataEmissao de DD/MM/YYYY para YYYY-MM-DD (formato ISO)
+      let dataEmissaoISO = '';
+      if (extractedData.dataEmissao) {
+        try {
+          const [dia, mes, ano] = extractedData.dataEmissao.split('/');
+          dataEmissaoISO = `${ano}-${mes}-${dia}`; // Formato ISO: YYYY-MM-DD
+          console.log('📅 Data de emissão convertida:', extractedData.dataEmissao, '→', dataEmissaoISO);
+        } catch (error) {
+          console.error('❌ Erro ao converter data de emissão:', error);
+        }
+      }
       
-      // Log dos dados extraídos para debug
-      console.log('🤖 PaymentModal: Dados extraídos pela IA:', {
-        dataEmissao: extractedData.dataEmissao,
-        formaPagamento: extractedData.formaPagamento,
-        mesReferencia: extractedData.mesReferencia
+      // ✅ MELHORADO: Preencher campos preservando valores existentes
+      // Só preencher se o campo estiver vazio OU se o valor extraído for válido
+      setFormData(prev => {
+        // ✅ CORRIGIDO: Usar dataPrestacao (data real do PDF) - SEMPRE!
+        let dataPagamentoCalculada = prev.dataPagamento;
+        
+        console.log('🔍 DEBUG: Verificando datas extraídas:', {
+          dataPrestacao: extractedData.dataPrestacao,
+          mesReferencia: extractedData.mesReferencia,
+          temDataPrestacao: !!extractedData.dataPrestacao
+        });
+        
+        if (extractedData.dataPrestacao) {
+          // SEMPRE usar dataPrestacao (data do serviço no PDF)
+          const [dia, mes, ano] = extractedData.dataPrestacao.split('/');
+          dataPagamentoCalculada = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+          console.log('✅ Data de pagamento do PDF (dataPrestacao):', extractedData.dataPrestacao, '→', dataPagamentoCalculada.toLocaleDateString('pt-BR'));
+        } else if (extractedData.mesReferencia) {
+          // Fallback: calcular do mesReferencia se dataPrestacao não disponível
+          console.warn('⚠️ dataPrestacao NÃO disponível, usando mesReferencia como fallback');
+          try {
+            const [mesRef, anoRef] = extractedData.mesReferencia.split('/');
+            // Usar PRIMEIRO dia do mês como fallback
+            dataPagamentoCalculada = new Date(parseInt(anoRef), parseInt(mesRef) - 1, 1);
+            console.log('📅 Data de pagamento calculada do mesReferencia (FALLBACK):', extractedData.mesReferencia, '→', dataPagamentoCalculada.toLocaleDateString('pt-BR'));
+          } catch (error) {
+            console.error('❌ Erro ao calcular data de pagamento:', error);
+          }
+        }
+        
+        const newFormData = {
+          ...prev,
+          // ✅ CORRIGIDO: SEMPRE sobrescrever com dados da Gemini (não apenas se vazio)
+          // Valor: sempre sobrescrever se extraído > 0
+          valorPago: extractedData.valor > 0 ? extractedData.valor.toString() : prev.valorPago,
+          // NFSE: sempre sobrescrever se extraída
+          nfse: extractedData.numeroNFSE && (extractedData.numeroNFSE !== 'Não encontrado') ? extractedData.numeroNFSE : prev.nfse,
+          // Pagador: sempre sobrescrever se extraído
+          pagador: extractedData.nomePessoa ? extractedData.nomePessoa : prev.pagador,
+          // Forma de pagamento: sempre sobrescrever se extraída
+          formaPagamento: extractedData.formaPagamento ? extractedData.formaPagamento : prev.formaPagamento,
+          // Data de pagamento: sempre usar data do PDF
+          dataPagamento: dataPagamentoCalculada,
+          // Data de emissão: sempre sobrescrever se extraída
+          dataEmissao: dataEmissaoISO ? dataEmissaoISO : prev.dataEmissao,
+          // Discriminação: sempre sobrescrever se extraída
+          discriminacao: extractedData.discriminacao ? extractedData.discriminacao : prev.discriminacao,
+        };
+        
+        console.log('📋 formData QUE SERÁ APLICADO:', {
+          dataPagamento: newFormData.dataPagamento,
+          dataEmissao: newFormData.dataEmissao,
+          valorPago: newFormData.valorPago,
+          nfse: newFormData.nfse,
+          pagador: newFormData.pagador
+        });
+        
+        return newFormData;
       });
       
-      // Salvar dados extraídos no banco para reutilização futura (apenas se Gemini funcionou)
-      if (idoso) {
-        try {
-          await window.electronAPI.pagamentos.upsert({
-            idosoId: idoso.id,
-            mesReferencia: mes,
-            anoReferencia: ano,
-            valorPago: normalizeValue(extractedData.valor.toString()),
-            dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
-            nfse: extractedData.numeroNFSE,
-            pagador: extractedData.nomePessoa || '',
-            formaPagamento: extractedData.formaPagamento || '',
-            observacoes: extractedData.discriminacao,
-          });
-          console.log('💾 PaymentModal: Dados extraídos salvos no banco para reutilização');
-          showSnackbar('✅ Dados extraídos e salvos com sucesso!', 'success');
-        } catch (error) {
-          console.error('❌ PaymentModal: Erro ao salvar dados extraídos:', error);
-          showSnackbar('✅ Dados extraídos, mas erro ao salvar automaticamente', 'warning');
-        }
+      // Log dos dados extraídos para debug
+      console.log('🤖 PaymentModal: Dados extraídos:', {
+        dataEmissao: extractedData.dataEmissao,
+        dataPrestacao: extractedData.dataPrestacao,
+        formaPagamento: extractedData.formaPagamento,
+        mesReferencia: extractedData.mesReferencia,
+        fallback: extractedData._fallback,
+        errorType: extractedData._errorType
+      });
+      
+      // ✅ NÃO salvar automaticamente após extração - apenas preencher formulário
+      // O usuário deve revisar e clicar em "Salvar" para confirmar
+      if (!extractedData._fallback) {
+        showSnackbar('✅ Dados extraídos com sucesso pela Gemini! Revise e clique em Salvar.', 'success');
+        console.log('✅ PaymentModal: Dados extraídos pela Gemini e preenchidos no formulário');
       } else {
-        showSnackbar('✅ Dados extraídos com sucesso pela Gemini!', 'success');
+        console.log('⚠️ Fallback ativo - usuário deve preencher campos manualmente');
       }
       
     } catch (err) {
@@ -386,16 +452,62 @@ export default function PaymentModal({
         });
       }
       
-      setFormData(prev => ({
-        ...prev,
-        valorPago: formatValue(valorNormalizado),
-        nfse: extractedData.numeroNFSE,
-        pagador: extractedData.nomePessoa || '',
-        formaPagamento: extractedData.formaPagamento || '',
-        dataPagamento: new Date(extractedData.dataPrestacao.split('/').reverse().join('-')),
-        dataEmissao: extractedData.dataEmissao || '',
-        discriminacao: extractedData.discriminacao || '',
-      }));
+      // Converter dataEmissao de DD/MM/YYYY para YYYY-MM-DD (formato ISO)
+      let dataEmissaoISO = '';
+      if (extractedData.dataEmissao) {
+        try {
+          const [dia, mes, ano] = extractedData.dataEmissao.split('/');
+          dataEmissaoISO = `${ano}-${mes}-${dia}`; // Formato ISO: YYYY-MM-DD
+          console.log('📅 Data de emissão convertida:', extractedData.dataEmissao, '→', dataEmissaoISO);
+        } catch (error) {
+          console.error('❌ Erro ao converter data de emissão:', error);
+        }
+      }
+      
+      // ✅ CORRIGIDO: SEMPRE sobrescrever quando usuário clicar em "Usar Dados Extraídos"
+      setFormData(prev => {
+        // ✅ CORRIGIDO: Usar dataPrestacao (data real do PDF) - SEMPRE!
+        let dataPagamentoCalculada = prev.dataPagamento;
+        
+        console.log('🔍 DEBUG (Botão): Verificando datas extraídas:', {
+          dataPrestacao: extractedData.dataPrestacao,
+          mesReferencia: extractedData.mesReferencia,
+          temDataPrestacao: !!extractedData.dataPrestacao
+        });
+        
+        if (extractedData.dataPrestacao) {
+          // SEMPRE usar dataPrestacao (data do serviço no PDF)
+          const [dia, mes, ano] = extractedData.dataPrestacao.split('/');
+          dataPagamentoCalculada = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+          console.log('✅ Data de pagamento do PDF (dataPrestacao):', extractedData.dataPrestacao, '→', dataPagamentoCalculada.toLocaleDateString('pt-BR'));
+        } else if (extractedData.mesReferencia) {
+          // Fallback: calcular do mesReferencia se dataPrestacao não disponível
+          console.warn('⚠️ dataPrestacao NÃO disponível, usando mesReferencia como fallback');
+          try {
+            const [mesRef, anoRef] = extractedData.mesReferencia.split('/');
+            // Usar PRIMEIRO dia do mês como fallback
+            dataPagamentoCalculada = new Date(parseInt(anoRef), parseInt(mesRef) - 1, 1);
+            console.log('📅 Data de pagamento calculada do mesReferencia (FALLBACK):', extractedData.mesReferencia, '→', dataPagamentoCalculada.toLocaleDateString('pt-BR'));
+          } catch (error) {
+            console.error('❌ Erro ao calcular data de pagamento:', error);
+          }
+        }
+        
+        return {
+          ...prev,
+          // ✅ CORRIGIDO: SEMPRE sobrescrever quando clicar no botão
+          valorPago: formatValue(valorNormalizado),
+          nfse: extractedData.numeroNFSE && (extractedData.numeroNFSE !== 'Não encontrado') ? extractedData.numeroNFSE : prev.nfse,
+          pagador: extractedData.nomePessoa ? extractedData.nomePessoa : prev.pagador,
+          formaPagamento: extractedData.formaPagamento ? extractedData.formaPagamento : prev.formaPagamento,
+          dataPagamento: dataPagamentoCalculada,
+          dataEmissao: dataEmissaoISO ? dataEmissaoISO : prev.dataEmissao,
+          discriminacao: extractedData.discriminacao ? extractedData.discriminacao : prev.discriminacao,
+        };
+      });
+      
+      console.log('✅ Dados extraídos aplicados ao formulário!');
+      showSnackbar('✅ Dados da NFSE aplicados com sucesso!', 'success');
       
       setExtractedData(null);
       setUploadedFile(null);
@@ -864,8 +976,8 @@ export default function PaymentModal({
                           {/* Validações */}
                           {idoso && (
                             <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              {/* Validação do nome */}
-                              {extractedData.nomePessoa === idoso.nome || extractedData.nomePessoa === idoso.responsavel?.nome ? (
+                              {/* Validação do nome - CORRIGIDO: usar normalização */}
+                              {nomesIguais(extractedData.nomePessoa, idoso.nome) || nomesIguais(extractedData.nomePessoa, idoso.responsavel?.nome || '') ? (
                                 <Chip
                                   label="✅ NFSE do idoso correto"
                                   color="success"
@@ -1021,6 +1133,7 @@ export default function PaymentModal({
 
             <Grid item xs={12} sm={6}>
               <DatePicker
+                key={`dataPagamento-${formData.dataPagamento?.getTime()}`}
                 label="Data do Pagamento"
                 value={formData.dataPagamento}
                 onChange={(date) => handleInputChange('dataPagamento', date)}
@@ -1045,8 +1158,13 @@ export default function PaymentModal({
 
             <Grid item xs={12} sm={6}>
               <DatePicker
+                key={`dataEmissao-${formData.dataEmissao}`}
                 label="Data de Emissão da NFSE"
-                value={formData.dataEmissao ? new Date(formData.dataEmissao) : null}
+                value={formData.dataEmissao ? (() => {
+                  // ✅ Corrigir timezone: criar data local sem conversão UTC
+                  const [ano, mes, dia] = formData.dataEmissao.split('-');
+                  return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
+                })() : null}
                 onChange={(date) => handleInputChange('dataEmissao', date ? date.toISOString().split('T')[0] : '')}
                 slotProps={{
                   textField: {

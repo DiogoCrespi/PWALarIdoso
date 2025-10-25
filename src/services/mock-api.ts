@@ -945,6 +945,13 @@ export const mockElectronAPI = {
       
       // Buscar idoso para calcular status
       const idoso = idososMock.find((i: any) => i.id === idosoId);
+      
+      // ✅ CORRIGIDO: Verificar se idoso existe antes de acessar propriedades
+      if (!idoso) {
+        console.error('❌ Mock API: Idoso não encontrado com ID:', idosoId);
+        throw new Error('Idoso não encontrado. Verifique se o idoso foi cadastrado corretamente.');
+      }
+      
       const valorBase = idoso?.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0;
       const valorPago = data.valorPago || 0;
       const tipoIdoso = idoso?.tipo || 'REGULAR';
@@ -960,7 +967,7 @@ export const mockElectronAPI = {
       }
       
       // ✅ CORRIGIDO: Calcular valores de benefício com precisão monetária
-      const salarioIdoso = arredondarMoeda(idoso.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0); // Salário do idoso (ex: R$ 1.518,00)
+      const salarioIdoso = arredondarMoeda(idoso?.beneficioSalario && idoso.beneficioSalario > 0 ? idoso.beneficioSalario : 0); // Salário do idoso (ex: R$ 1.518,00)
       const percentualBeneficio = 70; // Percentual padrão
       const valorNFSE = calcularPercentual(salarioIdoso, percentualBeneficio); // 70% do salário (ex: R$ 1.062,60)
       
@@ -1652,9 +1659,10 @@ export const mockElectronAPI = {
         const valorNumerico = parseFloat(data.valorPagamento.toString().replace(',', '.'));
         const valorPorExtenso = extenso(valorNumerico, { mode: 'currency' });
         
-        // Buscar tipo do idoso
+        // Buscar tipo do idoso (com normalização de nome)
         const idososMock = getIdososMock();
-        const idoso = idososMock.find((i: any) => i.nome === data.nomeIdoso);
+        const { buscarIdosoPorNome } = await import('../utils/nameNormalizer');
+        const idoso = buscarIdosoPorNome(data.nomeIdoso, idososMock);
         const tipoIdoso = idoso?.tipo || 'REGULAR';
         
         // Adicionar valor por extenso e tipo aos dados

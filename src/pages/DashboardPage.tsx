@@ -164,22 +164,67 @@ export default function DashboardPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Dashboard de Pagamentos
-        </Typography>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        flexDirection: { xs: 'column', sm: 'row' },
+        gap: { xs: 1.5, sm: 0 },
+        mb: { xs: 1.5, sm: 2 }
+      }}>
+        <Box>
+          <Typography variant="h4" component="h1" fontSize={{ xs: '1.5rem', sm: '2rem' }} sx={{ mb: 0.5 }}>
+            Dashboard de Pagamentos
+          </Typography>
+          {/* Legenda no cabeçalho */}
+          <Box sx={{ 
+            display: 'flex', 
+            gap: { xs: 1.5, sm: 2 }, 
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            mt: 0.5
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 14, height: 14, backgroundColor: '#4caf50', borderRadius: 0.5 }} />
+              <Typography variant="caption" fontSize={{ xs: '0.7rem', sm: '0.75rem' }} color="text.secondary">
+                Pago
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 14, height: 14, backgroundColor: '#ff9800', borderRadius: 0.5 }} />
+              <Typography variant="caption" fontSize={{ xs: '0.7rem', sm: '0.75rem' }} color="text.secondary">
+                Parcial
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box sx={{ width: 14, height: 14, backgroundColor: '#f44336', borderRadius: 0.5 }} />
+              <Typography variant="caption" fontSize={{ xs: '0.7rem', sm: '0.75rem' }} color="text.secondary">
+                Pendente
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
         
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: { xs: 1, sm: 2 }, 
+          alignItems: 'center',
+          width: { xs: '100%', sm: 'auto' }
+        }}>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleNovoPagamento}
-            sx={{ mr: 2 }}
+            size="small"
+            sx={{ 
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              px: { xs: 1.5, sm: 2 }
+            }}
           >
             Novo Pagamento
           </Button>
           
-          <FormControl sx={{ minWidth: 120 }}>
+          <FormControl sx={{ minWidth: { xs: 90, sm: 120 } }} size="small">
             <InputLabel>Ano</InputLabel>
             <Select
               value={ano}
@@ -218,23 +263,6 @@ export default function DashboardPage() {
         <Alert severity="info">
           Nenhum dado disponível
         </Alert>
-      )}
-
-      {dashboardData && !loading && (
-        <Box sx={{ mt: 3, display: 'flex', gap: 3, justifyContent: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 24, height: 24, backgroundColor: '#4caf50', borderRadius: 1 }} />
-            <Typography variant="body2">Pago</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 24, height: 24, backgroundColor: '#ff9800', borderRadius: 1 }} />
-            <Typography variant="body2">Parcial</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 24, height: 24, backgroundColor: '#f44336', borderRadius: 1 }} />
-            <Typography variant="body2">Pendente</Typography>
-          </Box>
-        </Box>
       )}
 
       {/* Modal de Pagamento */}
